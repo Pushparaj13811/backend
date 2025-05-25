@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
 const addressSchema = new Schema({
@@ -341,10 +341,29 @@ const userSchema = new Schema({
         sparse: true
     }
     
-}, { 
+}, {
     timestamps: true,
-    // Add version key for optimistic concurrency control
-    versionKey: true,
+    versionKey: '__v',
+    toJSON: {
+        virtuals: true,
+        transform: function(doc, ret) {
+            delete ret.password;
+            delete ret.refreshTokens;
+            delete ret.emailVerification;
+            delete ret.passwordReset;
+            return ret;
+        }
+    },
+    toObject: {
+        virtuals: true,
+        transform: function(doc, ret) {
+            delete ret.password;
+            delete ret.refreshTokens;
+            delete ret.emailVerification;
+            delete ret.passwordReset;
+            return ret;
+        }
+    },
     // Create indexes for better performance
     indexes: [
         { email: 1 },

@@ -6,6 +6,7 @@ import env           from './config/env.js';
   await connectDB();
   const app = createApp();
 
+
   app.listen(env.PORT, () =>
     console.log(`🚀 Server :: http://localhost:${env.PORT}`)
   );

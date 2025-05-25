@@ -1,77 +1,81 @@
+// utils/rate-limiter.js
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
 import { RedisManager } from './redis/RedisManager.js';
 
-// Create store
-const store = new RedisStore({
-  client: RedisManager.getRateLimiterInstance().client,
-  prefix: 'rate-limit:',
-  windowMs: 15 * 60 * 1000, // 15 minutes
-});
-
-// Create limiter factory
-export const createRateLimiter = ({
-  windowMs = 15 * 60 * 1000, // 15 minutes
-  max = 100, // Limit each IP to 100 requests per windowMs
-  message = 'Too many requests from this IP, please try again later',
-  keyGenerator = (req) => req.ip, // Use IP as default key
-  skip = (req) => false, // Don't skip any requests by default
-  handler = (req, res) => {
-    res.status(429).json({
-      status: 'error',
-      message
+// ---------------- utility helpers -------------
+const createRedisStore = async (prefix) => {
+  const redisClient = RedisManager.getRateLimiterInstance().client;
+  if (redisClient.status !== 'ready') {           // ← fixed logical test
+    await new Promise((resolve, reject) => {
+      redisClient.once('ready', resolve);
+      redisClient.once('error', reject);
     });
   }
-} = {}) => {
-  return rateLimit({
-    store,
-    windowMs,
-    max,
-    message,
-    keyGenerator,
-    skip,
-    handler,
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  return new RedisStore({
+    client: redisClient,
+    prefix: `rate-limit:${prefix}:`,
+    sendCommand: (...args) => redisClient.call(...args),
   });
 };
 
-// Predefined limiters
-export const authLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // 5 attempts per hour
-  message: 'Too many login attempts, please try again after an hour',
-  keyGenerator: (req) => `${req.ip}-${req.body.email || 'unknown'}`, // Rate limit by IP and email
-});
+const createRateLimiter = async (options = {}) => {
+    const {
+        windowMs = 15 * 60 * 1000,
+        max = 100,
+        message = 'Too many requests from this IP, please try again later.',
+        keyGenerator = (req) => req.ip,
+        skip = () => false,
+        handler = (req, res) => {
+            res.status(429).json({
+                success: false,
+                message
+            });
+        }
+    } = options;
 
-export const registerLimiter = createRateLimiter({
-  windowMs: 24 * 60 * 60 * 1000, // 24 hours
-  max: 3, // 3 registrations per day
-  message: 'Too many registration attempts, please try again tomorrow',
-  keyGenerator: (req) => `${req.ip}-register`, // Rate limit by IP
-});
+    const store = await createRedisStore(options.prefix || 'default');
 
-export const verifyEmailLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 attempts per hour
-  message: 'Too many email verification attempts, please try again later',
-  keyGenerator: (req) => `${req.ip}-verify-email`, // Rate limit by IP
-});
+    return rateLimit({
+        windowMs,
+        max,
+        message,
+        keyGenerator,
+        skip,
+        handler,
+        standardHeaders: true,
+        legacyHeaders: false,
+        store
+    });
+};
 
-export const refreshTokenLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 attempts per 15 minutes
-  message: 'Too many token refresh attempts, please try again later',
-  keyGenerator: (req) => `${req.ip}-refresh-token`, // Rate limit by IP
-});
+// ----------------------------------------------
 
-export const generalLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per 15 minutes
-  message: 'Too many requests, please try again later',
-});
+// top-level await – runs once when the module is first imported
+export const {
+  authLimiter,
+  registerLimiter,
+  verifyEmailLimiter,
+  refreshTokenLimiter,
+  generalLimiter,
+} = await (async () => {
+  const limiters = {
+    authLimiter:        await createRateLimiter({ prefix: 'auth',        windowMs: 15 * 60_000, max: 5  }),
+    registerLimiter:    await createRateLimiter({ prefix: 'register',    windowMs: 60 * 60_000, max: 3  }),
+    verifyEmailLimiter: await createRateLimiter({ prefix: 'verify-email',windowMs: 60 * 60_000, max: 3  }),
+    refreshTokenLimiter:await createRateLimiter({ prefix: 'refresh-token',windowMs: 15 * 60_000, max:10 }),
+    generalLimiter:     await createRateLimiter({ prefix: 'general',     windowMs: 15 * 60_000, max:100 }),
+  };
+  console.log('Rate-limiters initialised');
+  return limiters;
+})();
 
-// Cleanup function
+// Cleanup function for rate limiter resources
 export const cleanupRateLimiter = async () => {
-  await RedisManager.closeAll();
+    try {
+        await RedisManager.closeAll();
+        console.log('Rate limiter resources cleaned up successfully');
+    } catch (error) {
+        console.error('Error cleaning up rate limiter resources:', error);
+    }
 }; 
