@@ -39,7 +39,8 @@ export class UserRepository extends BaseRepository {
    * @returns {Promise<Object>} User
    */
   async findByEmail(email) {
-    return this.findOne({ email });
+    const query = this.findOne({ email });
+    return query.select('+password').exec();
   }
 
   /**

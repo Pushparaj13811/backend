@@ -38,9 +38,9 @@ export class BaseRepository {
   /**
    * Find one document by query
    * @param {Object} query - Query object
-   * @returns {Promise<Object>} Document
+   * @returns {Query} Mongoose query object
    */
-  async findOne(query) {
+  findOne(query) {
     return this.model.findOne(query);
   }
 
