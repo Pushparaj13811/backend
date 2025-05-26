@@ -1,0 +1,242 @@
+paths:
+  /system/health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      description: Check the health status of the API service
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      uptime:
+                        type: number
+                        example: 1234567
+                      message:
+                        type: string
+                        example: OK
+                      timestamp:
+                        type: number
+                        example: 1647123456789
+                      service:
+                        type: string
+                        example: API
+                      environment:
+                        type: string
+                        example: development
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /system/git:
+    get:
+      tags:
+        - System
+      summary: Git information
+      description: Get information about the current git repository state
+      operationId: gitInfo
+      responses:
+        '200':
+          description: Git information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      branch:
+                        type: string
+                        example: main
+                      commit:
+                        type: string
+                        example: abc123def456
+                      lastCommit:
+                        type: string
+                        example: "abc123 - John Doe, 2 hours ago : feat: add new feature"
+        '500':
+          description: Error fetching git information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /system/info:
+    get:
+      tags:
+        - System
+      summary: System information
+      description: Get detailed information about the system and application
+      operationId: systemInfo
+      responses:
+        '200':
+          description: System information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      application:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            example: API Service
+                          version:
+                            type: string
+                            example: 1.0.0
+                          environment:
+                            type: string
+                            example: development
+                          nodeVersion:
+                            type: string
+                            example: v16.14.0
+                          uptime:
+                            type: number
+                            example: 1234567
+                          timestamp:
+                            type: number
+                            example: 1647123456789
+                      system:
+                        type: object
+                        properties:
+                          platform:
+                            type: string
+                            example: darwin
+                          arch:
+                            type: string
+                            example: x64
+                          hostname:
+                            type: string
+                            example: server-1
+                          type:
+                            type: string
+                            example: Darwin
+                          release:
+                            type: string
+                            example: 21.3.0
+                          cpus:
+                            type: number
+                            example: 8
+                          totalMemory:
+                            type: number
+                            example: 17179869184
+                          freeMemory:
+                            type: number
+                            example: 8589934592
+                          loadAverage:
+                            type: array
+                            items:
+                              type: number
+                            example: [1.5, 1.2, 1.0]
+                      process:
+                        type: object
+                        properties:
+                          pid:
+                            type: number
+                            example: 12345
+                          memoryUsage:
+                            type: object
+                            properties:
+                              rss:
+                                type: number
+                                example: 123456789
+                              heapTotal:
+                                type: number
+                                example: 987654321
+                              heapUsed:
+                                type: number
+                                example: 456789123
+                              external:
+                                type: number
+                                example: 789123456
+                          cpuUsage:
+                            type: object
+                            properties:
+                              user:
+                                type: number
+                                example: 123456
+                              system:
+                                type: number
+                                example: 789012
+                          uptime:
+                            type: number
+                            example: 1234567
+                          title:
+                            type: string
+                            example: node
+                          argv:
+                            type: array
+                            items:
+                              type: string
+                            example: ["node", "server.js"]
+                          execPath:
+                            type: string
+                            example: /usr/local/bin/node
+                      network:
+                        type: object
+                        properties:
+                          interfaces:
+                            type: object
+                            additionalProperties:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  address:
+                                    type: string
+                                    example: 192.168.1.100
+                                  netmask:
+                                    type: string
+                                    example: 255.255.255.0
+                                  family:
+                                    type: string
+                                    example: IPv4
+                                  mac:
+                                    type: string
+                                    example: 00:11:22:33:44:55
+                                  internal:
+                                    type: boolean
+                                    example: false
+                      git:
+                        type: object
+                        properties:
+                          branch:
+                            type: string
+                            example: main
+                          commit:
+                            type: string
+                            example: abc123def456
+                          lastCommit:
+                            type: string
+                            example: "abc123 - John Doe, 2 hours ago : feat: add new feature"
+        '500':
+          description: Error fetching system information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error' 
