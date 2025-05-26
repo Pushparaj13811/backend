@@ -1,161 +1,241 @@
 import { BaseService } from './BaseService.js';
 import { AppError } from '../utils/errors/AppError.js';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-import env from '../config/env.js';
+import { otpService } from './OTPService.js';
+import { notificationService } from './NotificationService.js';
+
 export class UserService extends BaseService {
-  constructor(repository) {
-    super(repository);
+  constructor(userRepository) {
+    super(userRepository);
   }
 
+  /**
+   * Register a new user
+   * @param {Object} userData - User registration data
+   * @returns {Promise<Object>} Registration result
+   */
   async register(userData) {
+    const { email, phone } = userData;
+
     // Check if user already exists
-    const existingUser = await this.repository.findByEmail(userData.email);
+    const existingUser = await this.repository.findByEmailOrPhone(email, phone);
     if (existingUser) {
-      throw new AppError('Email already registered', 400);
+      throw new AppError('User already exists', 400);
     }
 
-    // Create user
-    const user = await this.repository.create(userData);
+    // Generate and store OTPs
+    const [emailOTP, phoneOTP] = await Promise.all([
+      otpService.generateAndStoreOTP('email', email),
+      phone ? otpService.generateAndStoreOTP('phone', phone) : null
+    ]);
 
-    // Generate verification token
-    const verificationToken = user.createEmailVerificationToken();
-    await this.repository.createVerificationToken(
-      user._id,
-      user.emailVerification.token,
-      user.emailVerification.expires
-    );
+    // Send verification OTPs
+    await Promise.all([
+      notificationService.sendVerificationOTP('email', email, emailOTP),
+      phone ? notificationService.sendVerificationOTP('phone', phone, phoneOTP) : null
+    ]);
 
-    // Remove sensitive data
-    user.password = undefined;
-    user.emailVerification.token = undefined;
-    user.emailVerification.expires = undefined;
+    // Create unverified user
+    const user = await this.repository.create({
+      ...userData,
+      email,
+      phone,
+      emailVerification: { isVerified: false },
+      phoneVerification: { isVerified: false }
+    });
 
-    return { user, verificationToken };
+    return { userId: user._id };
   }
 
-  async login(email, password, deviceInfo) {
-    // Find user and select password
-    const user = await this.repository.findByEmailAndSelectPassword(email);
+  /**
+   * Verify email OTP
+   * @param {string} email - User email
+   * @param {string} otp - OTP to verify
+   */
+  async verifyEmailOTP(email, otp) {
+    // Verify OTP
+    const isValid = await otpService.verifyOTP('email', email, otp);
+    if (!isValid) {
+      throw new AppError('Invalid OTP', 400);
+    }
+
+    // Update user verification status
+    const user = await this.repository.findByEmail(email);
     if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    await this.repository.update(user._id, {
+      'emailVerification.isVerified': true,
+      'emailVerification.verifiedAt': new Date()
+    });
+  }
+
+  /**
+   * Verify phone OTP
+   * @param {string} phone - User phone number
+   * @param {string} otp - OTP to verify
+   */
+  async verifyPhoneOTP(phone, otp) {
+    // Verify OTP
+    const isValid = await otpService.verifyOTP('phone', phone, otp);
+    if (!isValid) {
+      throw new AppError('Invalid OTP', 400);
+    }
+
+    // Update user verification status
+    const user = await this.repository.findByPhone(phone);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    await this.repository.update(user._id, {
+      'phoneVerification.isVerified': true,
+      'phoneVerification.verifiedAt': new Date()
+    });
+  }
+
+  /**
+   * Resend verification OTP
+   * @param {string} type - Type of verification (email/phone)
+   * @param {string} identifier - Email or phone number
+   */
+  async resendVerificationOTP(type, identifier) {
+    // Check if user exists
+    const user = type === 'email' 
+      ? await this.repository.findByEmail(identifier)
+      : await this.repository.findByPhone(identifier);
+
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    // Check if already verified
+    if (type === 'email' && user.emailVerification.isVerified) {
+      throw new AppError('Email already verified', 400);
+    }
+    if (type === 'phone' && user.phoneVerification.isVerified) {
+      throw new AppError('Phone already verified', 400);
+    }
+
+    // Generate and store new OTP
+    const otp = await otpService.generateAndStoreOTP(type, identifier);
+
+    // Send verification OTP
+    await notificationService.sendVerificationOTP(type, identifier, otp);
+  }
+
+  /**
+   * Login user
+   * @param {string} email - User email
+   * @param {string} password - User password
+   * @param {Object} deviceInfo - Device information
+   * @returns {Promise<Object>} Login result
+   */
+  async login(email, password, deviceInfo) {
+    const user = await this.repository.findByEmail(email);
+    if (!user || !(await user.comparePassword(password))) {
       throw new AppError('Invalid email or password', 401);
     }
 
-    // Check if account is locked
-    if (user.isLocked()) {
-      throw new AppError('Account is locked. Please try again later', 401);
-    }
-
-    // Check password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      await user.incLoginAttempts();
-      throw new AppError('Invalid email or password', 401);
-    }
-
-    // Check email verification
     if (!user.emailVerification.isVerified) {
-      throw new AppError('Please verify your email first', 401);
+      throw new AppError('Please verify your email first', 403);
     }
 
     // Generate tokens
-    const accessToken = this.generateAccessToken(user._id);
-    const refreshToken = this.generateRefreshToken(user._id);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
 
-    // Save refresh token
-    const tokenData = {
-      token: refreshToken,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      deviceInfo
-    };
-    await this.repository.addRefreshToken(user._id, tokenData);
-
-    // Update security info
+    // Update user's last login
     await this.repository.update(user._id, {
-      'security.loginAttempts': 0,
-      'security.lockUntil': undefined,
-      'security.lastLogin': new Date(),
-      'security.lastLoginIP': deviceInfo.ip
+      lastLogin: new Date(),
+      'analytics.loginCount': (user.analytics?.loginCount || 0) + 1,
+      'security.lastLogin': {
+        timestamp: new Date(),
+        ip: deviceInfo.ip,
+        userAgent: deviceInfo.userAgent,
+        deviceId: deviceInfo.deviceId
+      }
     });
 
-    // Remove sensitive data
-    user.password = undefined;
-    user.refreshTokens = undefined;
-
-    return { user, accessToken, refreshToken };
+    return {
+      user: user.toJSON(),
+      accessToken,
+      refreshToken
+    };
   }
 
-  async verifyEmail(token) {
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
-
-    const user = await this.repository.findOne({
-      'emailVerification.token': hashedToken,
-      'emailVerification.expires': { $gt: Date.now() }
-    });
-
+  /**
+   * Refresh access token
+   * @param {string} refreshToken - Refresh token
+   * @param {Object} deviceInfo - Device information
+   * @returns {Promise<Object>} New tokens
+   */
+  async refreshToken(refreshToken, deviceInfo) {
+    const user = await this.repository.findByRefreshToken(refreshToken);
     if (!user) {
-      throw new AppError('Invalid or expired verification token', 400);
-    }
-
-    await this.repository.verifyEmail(user._id);
-    return { message: 'Email verified successfully' };
-  }
-
-  async refreshToken(token, deviceInfo) {
-    try {
-      const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
-      const user = await this.repository.findById(decoded.id);
-
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
-
-      // Check if refresh token exists and is valid
-      const refreshTokenData = user.refreshTokens.find(
-        (rt) => rt.token === token && rt.expiresAt > Date.now()
-      );
-
-      if (!refreshTokenData) {
-        throw new AppError('Invalid refresh token', 401);
-      }
-
-      // Generate new tokens
-      const accessToken = this.generateAccessToken(user._id);
-      const newRefreshToken = this.generateRefreshToken(user._id);
-
-      // Update refresh token
-      await this.repository.removeRefreshToken(user._id, token);
-      await this.repository.addRefreshToken(user._id, {
-        token: newRefreshToken,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        deviceInfo
-      });
-
-      return { accessToken, refreshToken: newRefreshToken };
-    } catch (error) {
       throw new AppError('Invalid refresh token', 401);
     }
+
+    // Generate new tokens
+    const accessToken = user.generateAccessToken();
+    const newRefreshToken = user.generateRefreshToken();
+
+    // Update user's refresh token
+    await this.repository.updateRefreshToken(user._id, newRefreshToken);
+
+    return { accessToken, refreshToken: newRefreshToken };
   }
 
-  async logout(userId, token) {
-    await this.repository.removeRefreshToken(userId, token);
-    return { message: 'Logged out successfully' };
+  /**
+   * Logout user
+   * @param {string} userId - User ID
+   * @param {string} refreshToken - Refresh token to invalidate
+   */
+  async logout(userId, refreshToken) {
+    await this.repository.invalidateRefreshToken(userId, refreshToken);
   }
 
-  generateAccessToken(userId) {
-    return jwt.sign({ id: userId }, env.JWT_SECRET, {
-      expiresIn: env.JWT_EXPIRES_IN
-    });
+  /**
+   * Get user profile
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} User profile
+   */
+  async getProfile(userId) {
+    const user = await this.repository.findById(userId);
+    return user.toJSON();
   }
 
-  generateRefreshToken(userId) {
-    return jwt.sign({ id: userId }, env.JWT_REFRESH_SECRET, {
-      expiresIn: '7d'
+  /**
+   * Update user profile
+   * @param {string} userId - User ID
+   * @param {Object} updateData - Profile update data
+   * @returns {Promise<Object>} Updated user profile
+   */
+  async updateProfile(userId, updateData) {
+    const updatedUser = await this.repository.update(userId, updateData);
+    return updatedUser.toJSON();
+  }
+
+  /**
+   * Change user password
+   * @param {string} userId - User ID
+   * @param {string} currentPassword - Current password
+   * @param {string} newPassword - New password
+   */
+  async changePassword(userId, currentPassword, newPassword) {
+    const user = await this.repository.findById(userId);
+
+    if (!(await user.comparePassword(currentPassword))) {
+      throw new AppError('Current password is incorrect', 400);
+    }
+
+    await this.repository.update(userId, {
+      password: newPassword,
+      'security.lastPasswordChange': new Date(),
+      'security.passwordHistory': [
+        ...(user.security?.passwordHistory || []).slice(-4),
+        user.password
+      ]
     });
   }
 } 

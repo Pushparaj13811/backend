@@ -5,59 +5,105 @@ export class BaseService {
     this.repository = repository;
   }
 
+  /**
+   * Create a new entity
+   * @param {Object} data - Entity data
+   * @returns {Promise<Object>} Created entity
+   */
   async create(data) {
-    try {
-      return await this.repository.create(data);
-    } catch (error) {
-      throw new AppError('Error creating resource', 500);
-    }
+    return this.repository.create(data);
   }
 
+  /**
+   * Get entity by ID
+   * @param {string} id - Entity ID
+   * @returns {Promise<Object>} Entity
+   */
   async getById(id) {
-    const resource = await this.repository.findById(id);
-    if (!resource) {
-      throw new AppError('Resource not found', 404);
-    }
-    return resource;
+    return this.repository.findById(id);
   }
 
-  async getOne(filter) {
-    const resource = await this.repository.findOne(filter);
-    if (!resource) {
-      throw new AppError('Resource not found', 404);
-    }
-    return resource;
+  /**
+   * Get one entity by query
+   * @param {Object} query - Query object
+   * @returns {Promise<Object>} Entity
+   */
+  async getOne(query) {
+    return this.repository.findOne(query);
   }
 
-  async getAll(filter = {}, options = {}) {
-    try {
-      return await this.repository.find(filter, options);
-    } catch (error) {
-      throw new AppError('Error fetching resources', 500);
-    }
+  /**
+   * Get entities by query
+   * @param {Object} query - Query object
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} Entities
+   */
+  async getAll(query = {}, options = {}) {
+    return this.repository.find(query, options);
   }
 
-  async update(id, data) {
-    const resource = await this.repository.update(id, data);
-    if (!resource) {
-      throw new AppError('Resource not found', 404);
-    }
-    return resource;
+  /**
+   * Update entity by ID
+   * @param {string} id - Entity ID
+   * @param {Object} updateData - Update data
+   * @returns {Promise<Object>} Updated entity
+   */
+  async update(id, updateData) {
+    return this.repository.update(id, updateData);
   }
 
+  /**
+   * Delete entity by ID
+   * @param {string} id - Entity ID
+   * @returns {Promise<void>}
+   */
   async delete(id) {
-    const resource = await this.repository.delete(id);
-    if (!resource) {
-      throw new AppError('Resource not found', 404);
+    return this.repository.delete(id);
+  }
+
+  /**
+   * Count entities by query
+   * @param {Object} query - Query object
+   * @returns {Promise<number>} Count
+   */
+  async count(query = {}) {
+    return this.repository.count(query);
+  }
+
+  /**
+   * Check if entity exists
+   * @param {string} id - Entity ID
+   * @returns {Promise<boolean>} Exists
+   */
+  async exists(id) {
+    try {
+      await this.repository.findById(id);
+      return true;
+    } catch (error) {
+      if (error instanceof AppError && error.statusCode === 404) {
+        return false;
+      }
+      throw error;
     }
-    return resource;
   }
 
-  async exists(filter) {
-    return await this.repository.exists(filter);
+  /**
+   * Find and update entity
+   * @param {Object} query - Query object
+   * @param {Object} updateData - Update data
+   * @param {Object} options - Query options
+   * @returns {Promise<Object>} Updated entity
+   */
+  async findOneAndUpdate(query, updateData, options = {}) {
+    return this.repository.findOneAndUpdate(query, updateData, options);
   }
 
-  async count(filter = {}) {
-    return await this.repository.count(filter);
+  /**
+   * Find and delete entity
+   * @param {Object} query - Query object
+   * @returns {Promise<Object>} Deleted entity
+   */
+  async findOneAndDelete(query) {
+    return this.repository.findOneAndDelete(query);
   }
 } 
