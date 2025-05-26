@@ -7,12 +7,29 @@ class EmailService {
     this.transporter = nodemailer.createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
-      secure: env.SMTP_SECURE,
+      secure: env.SMTP_SECURE === 'true',
       auth: {
         user: env.SMTP_USER,
         pass: env.SMTP_PASS
       }
     });
+
+    // Verify SMTP connection configuration
+    this.verifyConnection();
+  }
+
+  /**
+   * Verify SMTP connection
+   * @private
+   */
+  async verifyConnection() {
+    try {
+      await this.transporter.verify();
+      console.log('SMTP connection verified successfully');
+    } catch (error) {
+      console.error('SMTP connection failed:', error);
+      throw new AppError('Failed to connect to SMTP server', 500);
+    }
   }
 
   /**
@@ -31,8 +48,10 @@ class EmailService {
         html: this._getVerificationEmailTemplate(otp, options)
       };
 
-      await this.transporter.sendMail(mailOptions);
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Verification email sent:', info.messageId);
     } catch (error) {
+      console.error('Failed to send verification email:', error);
       throw new AppError('Failed to send verification email', 500);
     }
   }
@@ -52,8 +71,10 @@ class EmailService {
         html: this._getWelcomeEmailTemplate(userData)
       };
 
-      await this.transporter.sendMail(mailOptions);
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Welcome email sent:', info.messageId);
     } catch (error) {
+      console.error('Failed to send welcome email:', error);
       throw new AppError('Failed to send welcome email', 500);
     }
   }
