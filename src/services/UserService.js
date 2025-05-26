@@ -3,7 +3,6 @@ import { AppError } from '../utils/errors/AppError.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import env from '../config/env.js';
-
 export class UserService extends BaseService {
   constructor(repository) {
     super(repository);
