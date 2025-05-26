@@ -1,0 +1,590 @@
+paths:
+  /suppliers:
+    get:
+      tags:
+        - Suppliers
+      summary: Get suppliers
+      description: Get a list of suppliers with optional filtering
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, pending-approval, suspended, terminated]
+          description: Supplier status to filter
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [manufacturer, distributor, wholesaler, local-vendor, importer, drop-shipper]
+          description: Supplier type to filter
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search term for supplier name, code, or contact
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: Suppliers retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      suppliers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Supplier'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+    post:
+      tags:
+        - Suppliers
+      summary: Create a new supplier
+      description: Create a new supplier (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierInput'
+      responses:
+        '201':
+          description: Supplier created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      supplier:
+                        $ref: '#/components/schemas/Supplier'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /suppliers/{id}:
+    get:
+      tags:
+        - Suppliers
+      summary: Get supplier by ID
+      description: Get a supplier by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Supplier ID
+      responses:
+        '200':
+          description: Supplier retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      supplier:
+                        $ref: '#/components/schemas/Supplier'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags:
+        - Suppliers
+      summary: Update supplier (PATCH)
+      description: Partially update a supplier (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Supplier ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierInput'
+      responses:
+        '200':
+          description: Supplier updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      supplier:
+                        $ref: '#/components/schemas/Supplier'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Suppliers
+      summary: Delete supplier
+      description: Delete a supplier (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Supplier ID
+      responses:
+        '200':
+          description: Supplier deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Supplier deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /suppliers/{id}/status:
+    patch:
+      tags:
+        - Suppliers
+      summary: Update supplier status
+      description: Update a supplier's status (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Supplier ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [active, inactive, pending-approval, suspended, terminated]
+                  example: active
+      responses:
+        '200':
+          description: Supplier status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      supplier:
+                        $ref: '#/components/schemas/Supplier'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /suppliers/active:
+    get:
+      tags:
+        - Suppliers
+      summary: Get active suppliers
+      description: Get a list of all active suppliers
+      responses:
+        '200':
+          description: Active suppliers retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      suppliers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Supplier'
+
+components:
+  schemas:
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        name:
+          type: string
+          example: ABC Electronics
+        code:
+          type: string
+          example: MAN-1234-AB
+        legalName:
+          type: string
+          example: ABC Electronics Ltd.
+        type:
+          type: string
+          enum: [manufacturer, distributor, wholesaler, local-vendor, importer, drop-shipper]
+          example: manufacturer
+        registration:
+          type: object
+          properties:
+            businessNumber:
+              type: string
+              example: BN123456789
+            taxId:
+              type: string
+              example: TAX123456789
+            vatNumber:
+              type: string
+              example: VAT123456789
+            licenseNumber:
+              type: string
+              example: LIC123456789
+            registrationCountry:
+              type: string
+              example: United States
+            registrationDate:
+              type: string
+              format: date
+              example: '2023-01-01'
+        contact:
+          type: object
+          properties:
+            primary:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: John Doe
+                title:
+                  type: string
+                  example: Sales Manager
+                email:
+                  type: string
+                  format: email
+                  example: john.doe@abcelectronics.com
+                phone:
+                  type: string
+                  example: '+1234567890'
+                mobile:
+                  type: string
+                  example: '+1234567891'
+                extension:
+                  type: string
+                  example: '123'
+        addresses:
+          type: object
+          properties:
+            billing:
+              type: object
+              properties:
+                street:
+                  type: string
+                  example: 123 Main St
+                city:
+                  type: string
+                  example: New York
+                state:
+                  type: string
+                  example: NY
+                country:
+                  type: string
+                  example: United States
+                postalCode:
+                  type: string
+                  example: '10001'
+            shipping:
+              type: object
+              properties:
+                street:
+                  type: string
+                  example: 123 Main St
+                city:
+                  type: string
+                  example: New York
+                state:
+                  type: string
+                  example: NY
+                country:
+                  type: string
+                  example: United States
+                postalCode:
+                  type: string
+                  example: '10001'
+                sameAsBilling:
+                  type: boolean
+                  example: true
+        financial:
+          type: object
+          properties:
+            currency:
+              type: string
+              example: USD
+            paymentTerms:
+              type: string
+              enum: [NET-30, NET-15, NET-7, COD, CIA, 2/10-NET-30]
+              example: NET-30
+            creditLimit:
+              type: number
+              example: 100000
+            currentBalance:
+              type: number
+              example: 25000
+        relationship:
+          type: object
+          properties:
+            category:
+              type: string
+              enum: [preferred, standard, trial, restricted]
+              example: preferred
+            startDate:
+              type: string
+              format: date
+              example: '2023-01-01'
+            contractExpiry:
+              type: string
+              format: date
+              example: '2024-01-01'
+        status:
+          type: string
+          enum: [active, inactive, pending-approval, suspended, terminated]
+          example: active
+        createdBy:
+          type: string
+          example: 507f1f77bcf86cd799439012
+        updatedBy:
+          type: string
+          example: 507f1f77bcf86cd799439012
+        createdAt:
+          type: string
+          format: date-time
+          example: '2023-01-01T00:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2023-01-01T00:00:00Z'
+
+    SupplierInput:
+      type: object
+      required:
+        - name
+        - type
+        - contact
+        - addresses
+      properties:
+        name:
+          type: string
+          example: ABC Electronics
+        legalName:
+          type: string
+          example: ABC Electronics Ltd.
+        type:
+          type: string
+          enum: [manufacturer, distributor, wholesaler, local-vendor, importer, drop-shipper]
+          example: manufacturer
+        registration:
+          type: object
+          properties:
+            businessNumber:
+              type: string
+              example: BN123456789
+            taxId:
+              type: string
+              example: TAX123456789
+            vatNumber:
+              type: string
+              example: VAT123456789
+            licenseNumber:
+              type: string
+              example: LIC123456789
+            registrationCountry:
+              type: string
+              example: United States
+            registrationDate:
+              type: string
+              format: date
+              example: '2023-01-01'
+        contact:
+          type: object
+          required:
+            - primary
+          properties:
+            primary:
+              type: object
+              required:
+                - name
+                - email
+                - phone
+              properties:
+                name:
+                  type: string
+                  example: John Doe
+                title:
+                  type: string
+                  example: Sales Manager
+                email:
+                  type: string
+                  format: email
+                  example: john.doe@abcelectronics.com
+                phone:
+                  type: string
+                  example: '+1234567890'
+                mobile:
+                  type: string
+                  example: '+1234567891'
+                extension:
+                  type: string
+                  example: '123'
+        addresses:
+          type: object
+          required:
+            - billing
+          properties:
+            billing:
+              type: object
+              required:
+                - street
+                - city
+                - state
+                - country
+                - postalCode
+              properties:
+                street:
+                  type: string
+                  example: 123 Main St
+                city:
+                  type: string
+                  example: New York
+                state:
+                  type: string
+                  example: NY
+                country:
+                  type: string
+                  example: United States
+                postalCode:
+                  type: string
+                  example: '10001'
+            shipping:
+              type: object
+              properties:
+                street:
+                  type: string
+                  example: 123 Main St
+                city:
+                  type: string
+                  example: New York
+                state:
+                  type: string
+                  example: NY
+                country:
+                  type: string
+                  example: United States
+                postalCode:
+                  type: string
+                  example: '10001'
+                sameAsBilling:
+                  type: boolean
+                  example: true
+        financial:
+          type: object
+          properties:
+            currency:
+              type: string
+              example: USD
+            paymentTerms:
+              type: string
+              enum: [NET-30, NET-15, NET-7, COD, CIA, 2/10-NET-30]
+              example: NET-30
+            creditLimit:
+              type: number
+              example: 100000
+        relationship:
+          type: object
+          properties:
+            category:
+              type: string
+              enum: [preferred, standard, trial, restricted]
+              example: preferred
+            startDate:
+              type: string
+              format: date
+              example: '2023-01-01'
+            contractExpiry:
+              type: string
+              format: date
+              example: '2024-01-01' 
