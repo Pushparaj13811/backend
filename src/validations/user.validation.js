@@ -37,6 +37,12 @@ export const userValidation = {
     identifier: Joi.string().required()
   }),
 
+  resendOTPAuthenticated: Joi.object({
+    type: Joi.string().valid('email', 'phone').required(),
+    identifier: Joi.string().required(),
+    password: Joi.string().required()
+  }),
+
   login: Joi.object({
     email: Joi.string().required().email(),
     password: Joi.string().required()
@@ -68,4 +74,10 @@ export const userValidation = {
       .message('Password must contain at least one uppercase letter, one lowercase letter, one number and one special character'),
     confirmPassword: Joi.string().required().valid(Joi.ref('newPassword'))
   })
-}; 
+};
+
+export const resendVerificationOTPSchema = Joi.object({
+  type: Joi.string().valid('email', 'phone').required(),
+  identifier: Joi.string().required(),
+  password: Joi.string().required()
+}); 
