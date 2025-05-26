@@ -1,6 +1,6 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose from 'mongoose';
 
-const reviewSchema = new Schema({
+const reviewSchema = new mongoose.Schema({
     // Basic Information
     product: {
         type: mongoose.Schema.Types.ObjectId,
@@ -19,6 +19,11 @@ const reviewSchema = new Schema({
         ref: 'Order',
         required: true,
         index: true
+    },
+    store: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Store',
+        required: true
     },
     
     // Review Content
@@ -171,18 +176,44 @@ const reviewSchema = new Schema({
         },
         moderatedAt: Date,
         notes: String
-    }
+    },
     
+    // Additional fields
+    isVerifiedPurchase: {
+        type: Boolean,
+        default: false
+    },
+    helpfulVotes: {
+        type: Number,
+        default: 0
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    likes: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 }, {
-    timestamps: true,
-    indexes: [
-        { product: 1, user: 1 },
-        { product: 1, status: 1 },
-        { 'rating.overall': -1 },
-        { isVerified: 1, status: 1 },
-        { createdAt: -1 }
-    ]
+    timestamps: true
 });
+
+// Add indexes
+reviewSchema.index({ product: 1, user: 1 });
+reviewSchema.index({ product: 1, status: 1 });
+reviewSchema.index({ 'rating.overall': -1 });
+reviewSchema.index({ isVerified: 1, status: 1 });
+reviewSchema.index({ createdAt: -1 });
+reviewSchema.index({ user: 1, store: 1 });
+reviewSchema.index({ store: 1, product: 1 });
+reviewSchema.index({ status: 1 });
+reviewSchema.index({ title: 'text', content: 'text' });
 
 // Method to calculate helpfulness score
 reviewSchema.methods.getHelpfulnessScore = function() {
