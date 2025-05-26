@@ -1,4 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
+import { AppError } from '../../utils/errors/AppError.js';
 
 const warehouseSchema = new Schema({
     // Basic Information
@@ -6,15 +7,22 @@ const warehouseSchema = new Schema({
         type: String,
         required: [true, 'Warehouse name is required'],
         trim: true,
+        minlength: [2, 'Warehouse name must be at least 2 characters long'],
         maxlength: [100, 'Warehouse name cannot exceed 100 characters']
     },
     code: {
         type: String,
-        required: true,
+        required: [true, 'Warehouse code is required'],
         unique: true,
-        uppercase: true,
         trim: true,
-        index: true
+        uppercase: true,
+        minlength: [2, 'Warehouse code must be at least 2 characters long'],
+        maxlength: [10, 'Warehouse code cannot exceed 10 characters']
+    },
+    type: {
+        type: String,
+        enum: ['main', 'regional', 'distribution', 'retail', 'other'],
+        default: 'main'
     },
     description: {
         type: String,
@@ -26,27 +34,27 @@ const warehouseSchema = new Schema({
         address: {
             street: {
                 type: String,
-                required: true,
+                required: [true, 'Street address is required'],
                 trim: true
             },
             city: {
                 type: String,
-                required: true,
+                required: [true, 'City is required'],
                 trim: true
             },
             state: {
                 type: String,
-                required: true,
+                required: [true, 'State is required'],
                 trim: true
             },
             country: {
                 type: String,
-                required: true,
+                required: [true, 'Country is required'],
                 trim: true
             },
             postalCode: {
                 type: String,
-                required: true,
+                required: [true, 'Postal code is required'],
                 trim: true
             }
         },
@@ -66,18 +74,33 @@ const warehouseSchema = new Schema({
     
     // Contact Information
     contact: {
-        manager: {
-            name: String,
-            phone: String,
-            email: {
-                type: String,
-                lowercase: true,
-                match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email']
+        name: {
+            type: String,
+            required: [true, 'Contact person name is required'],
+            trim: true
+        },
+        phone: {
+            type: String,
+            required: [true, 'Phone number is required'],
+            trim: true,
+            validate: {
+                validator: function(v) {
+                    return /^\+?[\d\s-]{10,}$/.test(v);
+                },
+                message: 'Please provide a valid phone number'
             }
         },
-        emergency: {
-            phone: String,
-            email: String
+        email: {
+            type: String,
+            required: [true, 'Email is required'],
+            trim: true,
+            lowercase: true,
+            validate: {
+                validator: function(v) {
+                    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+                },
+                message: 'Please provide a valid email address'
+            }
         }
     },
     
@@ -108,33 +131,27 @@ const warehouseSchema = new Schema({
         },
         capacity: {
             total: {
-                value: Number,
-                unit: {
-                    type: String,
-                    enum: ['pallets', 'cubic-feet', 'cubic-meters'],
-                    default: 'pallets'
-                }
+                type: Number,
+                required: [true, 'Total capacity is required'],
+                min: [0, 'Total capacity cannot be negative']
             },
-            used: {
-                value: Number,
-                unit: {
-                    type: String,
-                    enum: ['pallets', 'cubic-feet', 'cubic-meters'],
-                    default: 'pallets'
-                }
+            unit: {
+                type: String,
+                enum: ['sqft', 'sqm', 'pallets', 'units'],
+                default: 'sqft'
             }
         },
         features: [{
             type: String,
             enum: [
-                'dock-doors',
-                'loading-bays',
-                'security-system',
-                'climate-control',
-                'fire-suppression',
-                'backup-power',
+                'temperature-controlled',
+                'hazardous-materials',
                 'cross-docking',
-                'value-added-services'
+                'loading-docks',
+                'security-system',
+                'cctv',
+                'fire-protection',
+                'other'
             ]
         }]
     },
@@ -303,8 +320,22 @@ const warehouseSchema = new Schema({
             min: 0,
             max: 100
         }
-    }
+    },
     
+    // Additional Fields
+    notes: {
+        type: String,
+        trim: true
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
 }, {
     timestamps: true,
     indexes: [
@@ -313,7 +344,9 @@ const warehouseSchema = new Schema({
         { status: 1 },
         { 'details.type': 1, status: 1 },
         { 'analytics.throughput.monthly': -1 }
-    ]
+    ],
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
 });
 
 // Method to check if warehouse is open
@@ -376,5 +409,21 @@ warehouseSchema.methods.findAvailableLocation = function(product) {
         bin: 'B' + Math.floor(Math.random() * 10)
     };
 };
+
+// Virtual for full address
+warehouseSchema.virtual('fullAddress').get(function() {
+    return `${this.location.address.street}, ${this.location.address.city}, ${this.location.address.state} ${this.location.address.postalCode}, ${this.location.address.country}`;
+});
+
+// Pre-save middleware to validate code uniqueness
+warehouseSchema.pre('save', async function(next) {
+    if (this.isModified('code')) {
+        const existingWarehouse = await this.constructor.findOne({ code: this.code });
+        if (existingWarehouse && existingWarehouse._id.toString() !== this._id.toString()) {
+            throw new AppError('Warehouse code already in use', 400);
+        }
+    }
+    next();
+});
 
 export const Warehouse = mongoose.model('Warehouse', warehouseSchema); 
