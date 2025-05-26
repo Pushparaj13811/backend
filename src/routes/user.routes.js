@@ -1,7 +1,7 @@
-import { Router } from 'express';
+import express from 'express';
 import { UserController } from '../controllers/UserController.js';
 import { validateRequest } from '../middlewares/validate-request.js';
-import { registerSchema, loginSchema } from '../validations/user.validation.js';
+import { userValidation } from '../validations/user.validation.js';
 import { authenticate } from '../middlewares/authenticate.js';
 import {
   authLimiter,
@@ -11,7 +11,7 @@ import {
   generalLimiter
 } from '../utils/rate-limiter.js';
 
-const router = Router();
+const router = express.Router();
 const userController = new UserController();
 
 // Apply general rate limiter to all routes
@@ -21,34 +21,59 @@ router.use(generalLimiter);
 router.post(
   '/register',
   registerLimiter,
-  validateRequest(registerSchema),
+  validateRequest(userValidation.register),
   userController.register
+);
+
+router.post(
+  '/verify/email',
+  validateRequest(userValidation.verifyEmailOTP),
+  userController.verifyEmailOTP
+);
+
+router.post(
+  '/verify/phone',
+  validateRequest(userValidation.verifyPhoneOTP),
+  userController.verifyPhoneOTP
+);
+
+router.post(
+  '/resend-otp',
+  validateRequest(userValidation.resendOTP),
+  userController.resendVerificationOTP
 );
 
 router.post(
   '/login',
   authLimiter,
-  validateRequest(loginSchema),
+  validateRequest(userValidation.login),
   userController.login
-);
-
-router.get(
-  '/verify-email/:token',
-  verifyEmailLimiter,
-  userController.verifyEmail
 );
 
 router.post(
   '/refresh-token',
   refreshTokenLimiter,
+  validateRequest(userValidation.refreshToken),
   userController.refreshToken
 );
 
 // Protected routes
-router.post(
-  '/logout',
-  authenticate,
-  userController.logout
+router.use(authenticate);
+
+router.post('/logout', userController.logout);
+
+router.get('/profile', userController.getProfile);
+
+router.patch(
+  '/profile',
+  validateRequest(userValidation.updateProfile),
+  userController.updateProfile
+);
+
+router.patch(
+  '/change-password',
+  validateRequest(userValidation.changePassword),
+  userController.changePassword
 );
 
 export default router; 
