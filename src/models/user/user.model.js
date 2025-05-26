@@ -1,6 +1,8 @@
 import mongoose, { Schema } from 'mongoose';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import env from '../../config/env.js';
 
 const userSchema = new Schema({
     // Basic Information
@@ -260,6 +262,10 @@ const userSchema = new Schema({
         lastLoginIP: {
             type: String
         },
+        lastLoginDevice: {
+            userAgent: String,
+            deviceId: String
+        },
         twoFactorEnabled: {
             type: Boolean,
             default: false
@@ -279,7 +285,11 @@ const userSchema = new Schema({
             changedAt: {
                 type: Date
             }
-        }]
+        }],
+        tokenVersion: {
+            type: Number,
+            default: 0
+        }
     },
 
     // Relationships
@@ -383,7 +393,7 @@ userSchema.pre('save', async function (next) {
         // Hash password with cost of 12
         const salt = await bcrypt.genSalt(12);
         this.password = await bcrypt.hash(this.password, salt);
-        
+
         // Update password history
         if (this.security.passwordHistory.length >= 5) {
             this.security.passwordHistory.shift(); // Remove oldest password
@@ -392,7 +402,7 @@ userSchema.pre('save', async function (next) {
             password: this.password,
             changedAt: new Date()
         });
-        
+
         this.security.lastPasswordChange = new Date();
         next();
     } catch (error) {
@@ -409,9 +419,20 @@ userSchema.pre('save', function (next) {
 // Instance method to compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
     try {
-        return await bcrypt.compare(candidatePassword, this.password);
+        // Check if password field exists (might not be selected in query)
+        if (!this.password) {
+            throw new Error('Password field not selected in query');
+        }
+
+        // Compare passwords
+        const isMatch = await bcrypt.compare(candidatePassword, this.password);
+        if (!isMatch) {
+            throw new Error('Invalid password');
+        }
+
+        return true;
     } catch (error) {
-        throw new Error('Password comparison failed');
+        throw new Error(`Password comparison failed: ${error.message}`);
     }
 };
 
@@ -477,10 +498,15 @@ userSchema.methods.resetLoginAttempts = function () {
 };
 
 // Instance method to update last login
-userSchema.methods.updateLastLogin = function (ip) {
-    this.security.lastLogin = new Date();
-    this.security.lastLoginIP = ip;
-    this.analytics.lastLogin = new Date();
+userSchema.methods.updateLastLogin = function (req) {
+    const now = new Date();
+    this.security.lastLogin = now;
+    this.security.lastLoginIP = req.ip;
+    this.security.lastLoginDevice = {
+        userAgent: req.headers['user-agent'] || 'unknown',
+        deviceId: req.headers['x-device-id'] || 'unknown'
+    };
+    this.analytics.lastLogin = now;
     this.analytics.loginCount += 1;
     return this.save();
 };
@@ -503,6 +529,31 @@ userSchema.statics.findByRole = function (role) {
 // Static method to find users by status
 userSchema.statics.findByStatus = function (status) {
     return this.find({ status });
+};
+
+// Instance method to generate access token
+userSchema.methods.generateAccessToken = function () {
+    const payload = {
+        id: this._id,
+        email: this.email,
+        role: this.role
+    };
+
+    return jwt.sign(payload, env.JWT_SECRET, {
+        expiresIn: env.JWT_EXPIRES_IN || '1d'
+    });
+};
+
+// Instance method to generate refresh token
+userSchema.methods.generateRefreshToken = function () {
+    const payload = {
+        id: this._id,
+        tokenVersion: this.security?.tokenVersion || 0
+    };
+
+    return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
+        expiresIn: env.JWT_REFRESH_EXPIRES_IN || '7d'
+    });
 };
 
 const User = mongoose.model('User', userSchema);
