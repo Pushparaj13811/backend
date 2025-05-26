@@ -83,15 +83,9 @@ export class UserController {
    */
   resendVerificationOTP = asyncHandler(async (req, res, next) => {
     try {
-      const { type, identifier } = req.body;
-      await this.userService.resendVerificationOTP(type, identifier);
-
-      res.status(200).json({
-        success: true,
-        data: {
-          message: `Verification OTP sent to ${type}`
-        }
-      });
+      const { type, identifier, password } = req.body;
+      const result = await this.userService.resendVerificationOTP(type, identifier, password);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
@@ -101,37 +95,15 @@ export class UserController {
    * Login user
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object
-   * @param {Function} next - Express next middleware function
+   * @param {Function} next - Express next middleware
    */
   login = asyncHandler(async (req, res, next) => {
     try {
       const { email, password } = req.body;
-      const deviceInfo = {
-        userAgent: req.headers['user-agent'],
-        ip: req.ip,
-        deviceId: req.headers['x-device-id'] || 'unknown'
-      };
-
-      const { user, accessToken, refreshToken } = await this.userService.login(
-        email,
-        password,
-        deviceInfo
-      );
-
-      // Set refresh token in HTTP-only cookie
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
-
+      const result = await this.userService.login(email, password, req);
       res.status(200).json({
-        success: true,
-        data: {
-          user,
-          accessToken
-        }
+        status: 'success',
+        data: result
       });
     } catch (error) {
       next(error);
