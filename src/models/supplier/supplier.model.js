@@ -1,10 +1,14 @@
+import mongoose from 'mongoose';
+import { AppError } from '../../utils/errors/AppError.js';
+
 // ===== SUPPLIER SCHEMA =====
-const supplierSchema = new Schema({
+const supplierSchema = new mongoose.Schema({
     // Basic Information
     name: {
         type: String,
         required: [true, 'Supplier name is required'],
         trim: true,
+        minlength: [2, 'Supplier name must be at least 2 characters long'],
         maxlength: [100, 'Supplier name cannot exceed 100 characters'],
         index: true
     },
@@ -552,8 +556,17 @@ const supplierSchema = new Schema({
             type: String,
             maxlength: [1000, 'Public notes cannot exceed 1000 characters']
         }
-    }
+    },
     
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
 }, { 
     timestamps: true,
     indexes: [
@@ -566,7 +579,9 @@ const supplierSchema = new Schema({
         { 'contact.primary.email': 1 },
         { 'financial.paymentTerms': 1, status: 1 },
         { createdAt: -1 }
-    ]
+    ],
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
 });
 
 // Virtual for full address
@@ -728,4 +743,17 @@ supplierSchema.statics.findNeedingReview = function() {
     });
 };
 
-export const Supplier = mongoose.model('Supplier', supplierSchema);
+// Pre-save middleware to validate email uniqueness
+supplierSchema.pre('save', async function(next) {
+    if (this.isModified('contact.primary.email')) {
+        const existingSupplier = await this.constructor.findOne({ 'contact.primary.email': this.contact.primary.email });
+        if (existingSupplier && existingSupplier._id.toString() !== this._id.toString()) {
+            throw new AppError('Email already in use', 400);
+        }
+    }
+    next();
+});
+
+const Supplier = mongoose.model('Supplier', supplierSchema);
+
+export default Supplier;
