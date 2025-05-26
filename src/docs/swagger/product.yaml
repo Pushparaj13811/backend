@@ -1,0 +1,886 @@
+paths:
+  /products:
+    get:
+      tags:
+        - Products
+      summary: Get products
+      description: Get a list of products with optional filtering
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Category ID to filter products
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, active, inactive, discontinued]
+          description: Product status to filter
+        - name: inStock
+          in: query
+          schema:
+            type: boolean
+          description: Filter products in stock
+        - name: onSale
+          in: query
+          schema:
+            type: boolean
+          description: Filter products on sale
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search term for product name, description, or SKU
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      products:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+    post:
+      tags:
+        - Products
+      summary: Create a new product
+      description: Create a new product (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      product:
+                        $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Get product by ID
+      description: Get a product by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: Product retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      product:
+                        $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags:
+        - Products
+      summary: Update product (PATCH)
+      description: Partially update a product (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      product:
+                        $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Products
+      summary: Update product (PUT)
+      description: Fully update a product (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      product:
+                        $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Products
+      summary: Delete product
+      description: Delete a product (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Product deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /products/slug/{slug}:
+    get:
+      tags:
+        - Products
+      summary: Get product by slug
+      description: Get a product by its slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product slug
+      responses:
+        '200':
+          description: Product retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      product:
+                        $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /products/sku/{sku}:
+    get:
+      tags:
+        - Products
+      summary: Get product by SKU
+      description: Get a product by its SKU
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product SKU
+      responses:
+        '200':
+          description: Product retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      product:
+                        $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /products/{id}/inventory:
+    patch:
+      tags:
+        - Products
+      summary: Update product inventory
+      description: Update product inventory (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity:
+                  type: integer
+                  description: New quantity
+                  example: 100
+                type:
+                  type: string
+                  enum: [available, reserved, damaged, expired]
+                  description: Type of inventory update
+                  example: available
+      responses:
+        '200':
+          description: Inventory updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      product:
+                        $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /products/{id}/variants:
+    get:
+      tags:
+        - Products
+      summary: Get product variants
+      description: Get all variants of a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: Product variants retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      variants:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ProductVariant'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /products/{id}/related:
+    get:
+      tags:
+        - Products
+      summary: Get related products
+      description: Get related products based on category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 5
+          description: Number of related products to return
+      responses:
+        '200':
+          description: Related products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      products:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        name:
+          type: string
+          example: iPhone 13 Pro
+        slug:
+          type: string
+          example: iphone-13-pro
+        description:
+          type: string
+          example: Latest iPhone with Pro camera system
+        shortDescription:
+          type: string
+          example: A15 Bionic chip, Pro camera system
+        category:
+          type: string
+          example: 507f1f77bcf86cd799439012
+        sku:
+          type: string
+          example: IP13P-256-BLK
+        barcode:
+          type: string
+          example: 123456789012
+        basePrice:
+          type: number
+          example: 999.99
+        salePrice:
+          type: number
+          example: 899.99
+        costPrice:
+          type: number
+          example: 800.00
+        taxRate:
+          type: number
+          example: 0.1
+        currency:
+          type: string
+          example: USD
+        images:
+          type: array
+          items:
+            type: string
+          example: ['https://example.com/images/iphone13pro-1.jpg']
+        videos:
+          type: array
+          items:
+            type: string
+          example: ['https://example.com/videos/iphone13pro.mp4']
+        specifications:
+          type: object
+          properties:
+            color:
+              type: string
+              example: Black
+            storage:
+              type: string
+              example: 256GB
+            screen:
+              type: string
+              example: 6.1-inch Super Retina XDR
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariant'
+        nutrition:
+          type: object
+          properties:
+            servingSize:
+              type: string
+              example: 100g
+            calories:
+              type: number
+              example: 0
+            fats:
+              type: number
+              example: 0
+            cholesterol:
+              type: number
+              example: 0
+            sodium:
+              type: number
+              example: 0
+            carbohydrates:
+              type: number
+              example: 0
+            protein:
+              type: number
+              example: 0
+        inventory:
+          type: object
+          properties:
+            available:
+              type: integer
+              example: 100
+            reserved:
+              type: integer
+              example: 10
+            damaged:
+              type: integer
+              example: 2
+            expired:
+              type: integer
+              example: 0
+            reorderLevel:
+              type: integer
+              example: 20
+            maxStockLevel:
+              type: integer
+              example: 200
+            location:
+              type: string
+              example: Warehouse A, Shelf B3
+        shipping:
+          type: object
+          properties:
+            weight:
+              type: number
+              example: 0.5
+            dimensions:
+              type: object
+              properties:
+                length:
+                  type: number
+                  example: 10
+                width:
+                  type: number
+                  example: 5
+                height:
+                  type: number
+                  example: 2
+            freeShipping:
+              type: boolean
+              example: true
+            restrictions:
+              type: array
+              items:
+                type: string
+              example: ['No international shipping']
+        seo:
+          type: object
+          properties:
+            title:
+              type: string
+              example: iPhone 13 Pro - Latest Apple Smartphone
+            description:
+              type: string
+              example: Get the latest iPhone 13 Pro with Pro camera system
+            keywords:
+              type: array
+              items:
+                type: string
+              example: ['iphone', 'smartphone', 'apple']
+        status:
+          type: string
+          enum: [draft, active, inactive, discontinued]
+          example: active
+        analytics:
+          type: object
+          properties:
+            viewCount:
+              type: integer
+              example: 1000
+            purchaseCount:
+              type: integer
+              example: 50
+            averageRating:
+              type: number
+              example: 4.5
+            lastUpdated:
+              type: string
+              format: date-time
+              example: '2024-03-26T04:01:27.376Z'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-03-26T04:01:27.376Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-03-26T04:01:27.376Z'
+
+    ProductInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: iPhone 13 Pro
+        description:
+          type: string
+          example: Latest iPhone with Pro camera system
+        shortDescription:
+          type: string
+          example: A15 Bionic chip, Pro camera system
+        category:
+          type: string
+          example: 507f1f77bcf86cd799439012
+        sku:
+          type: string
+          example: IP13P-256-BLK
+        barcode:
+          type: string
+          example: 123456789012
+        basePrice:
+          type: number
+          example: 999.99
+        salePrice:
+          type: number
+          example: 899.99
+        costPrice:
+          type: number
+          example: 800.00
+        taxRate:
+          type: number
+          example: 0.1
+        currency:
+          type: string
+          example: USD
+        images:
+          type: array
+          items:
+            type: string
+          example: ['https://example.com/images/iphone13pro-1.jpg']
+        videos:
+          type: array
+          items:
+            type: string
+          example: ['https://example.com/videos/iphone13pro.mp4']
+        specifications:
+          type: object
+          properties:
+            color:
+              type: string
+              example: Black
+            storage:
+              type: string
+              example: 256GB
+            screen:
+              type: string
+              example: 6.1-inch Super Retina XDR
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariantInput'
+        nutrition:
+          type: object
+          properties:
+            servingSize:
+              type: string
+              example: 100g
+            calories:
+              type: number
+              example: 0
+            fats:
+              type: number
+              example: 0
+            cholesterol:
+              type: number
+              example: 0
+            sodium:
+              type: number
+              example: 0
+            carbohydrates:
+              type: number
+              example: 0
+            protein:
+              type: number
+              example: 0
+        inventory:
+          type: object
+          properties:
+            available:
+              type: integer
+              example: 100
+            reserved:
+              type: integer
+              example: 10
+            damaged:
+              type: integer
+              example: 2
+            expired:
+              type: integer
+              example: 0
+            reorderLevel:
+              type: integer
+              example: 20
+            maxStockLevel:
+              type: integer
+              example: 200
+            location:
+              type: string
+              example: Warehouse A, Shelf B3
+        shipping:
+          type: object
+          properties:
+            weight:
+              type: number
+              example: 0.5
+            dimensions:
+              type: object
+              properties:
+                length:
+                  type: number
+                  example: 10
+                width:
+                  type: number
+                  example: 5
+                height:
+                  type: number
+                  example: 2
+            freeShipping:
+              type: boolean
+              example: true
+            restrictions:
+              type: array
+              items:
+                type: string
+              example: ['No international shipping']
+        seo:
+          type: object
+          properties:
+            title:
+              type: string
+              example: iPhone 13 Pro - Latest Apple Smartphone
+            description:
+              type: string
+              example: Get the latest iPhone 13 Pro with Pro camera system
+            keywords:
+              type: array
+              items:
+                type: string
+              example: ['iphone', 'smartphone', 'apple']
+        status:
+          type: string
+          enum: [draft, active, inactive, discontinued]
+          example: active
+
+    ProductVariant:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 507f1f77bcf86cd799439013
+        name:
+          type: string
+          example: iPhone 13 Pro - 256GB - Black
+        sku:
+          type: string
+          example: IP13P-256-BLK
+        attributes:
+          type: object
+          properties:
+            color:
+              type: string
+              example: Black
+            storage:
+              type: string
+              example: 256GB
+        price:
+          type: number
+          example: 999.99
+        salePrice:
+          type: number
+          example: 899.99
+        inventory:
+          type: object
+          properties:
+            available:
+              type: integer
+              example: 50
+            reserved:
+              type: integer
+              example: 5
+        status:
+          type: string
+          enum: [active, inactive]
+          example: active
+
+    ProductVariantInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: iPhone 13 Pro - 256GB - Black
+        sku:
+          type: string
+          example: IP13P-256-BLK
+        attributes:
+          type: object
+          properties:
+            color:
+              type: string
+              example: Black
+            storage:
+              type: string
+              example: 256GB
+        price:
+          type: number
+          example: 999.99
+        salePrice:
+          type: number
+          example: 899.99
+        inventory:
+          type: object
+          properties:
+            available:
+              type: integer
+              example: 50
+            reserved:
+              type: integer
+              example: 5
+        status:
+          type: string
+          enum: [active, inactive]
+          example: active
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        pages:
+          type: integer
+          example: 10 

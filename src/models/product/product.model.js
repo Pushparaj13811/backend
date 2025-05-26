@@ -2,6 +2,9 @@
 // PRODUCT SCHEMA - /models/product/product.model.js
 // =============================================
 
+import mongoose, { Schema } from 'mongoose';
+
+// Nutrition Information Schema
 const nutritionSchema = new Schema({
     servingSize: { type: String, required: true },
     servingsPerContainer: { type: Number },
@@ -27,6 +30,7 @@ const nutritionSchema = new Schema({
     }]
 });
 
+// Inventory Schema
 const inventorySchema = new Schema({
     sku: {
         type: String,
@@ -58,267 +62,265 @@ const inventorySchema = new Schema({
     nextDeliveryExpected: { type: Date }
 }, { timestamps: true });
 
-const pricingSchema = new Schema({
-    basePrice: {
-        type: Number,
-        required: true,
-        min: [0, 'Price cannot be negative']
-    },
-    salePrice: {
-        type: Number,
-        min: [0, 'Sale price cannot be negative']
-    },
-    costPrice: {
-        type: Number,
-        required: true,
-        min: [0, 'Cost price cannot be negative'],
-        select: false
-    },
-    pricePerUnit: {
-        value: Number,
-        unit: {
-            type: String,
-            enum: ['per_lb', 'per_kg', 'per_oz', 'per_piece', 'per_gallon', 'per_liter']
-        }
-    },
-    bulkPricing: [{
-        minQuantity: { type: Number, required: true },
-        pricePerUnit: { type: Number, required: true },
-        discountPercentage: { type: Number }
-    }],
-    memberPrice: { type: Number },
-    priceHistory: [{
-        price: Number,
-        effectiveDate: Date,
-        reason: String
-    }]
-});
-
+// Product Schema
 const productSchema = new Schema({
     // Basic Information
     name: {
         type: String,
         required: [true, 'Product name is required'],
         trim: true,
-        maxlength: [200, 'Product name cannot exceed 200 characters'],
-        index: 'text'
+        maxlength: [200, 'Product name cannot exceed 200 characters']
     },
     slug: {
         type: String,
         required: true,
         unique: true,
         lowercase: true,
+        trim: true,
         index: true
     },
     description: {
         type: String,
         required: [true, 'Product description is required'],
-        maxlength: [2000, 'Description cannot exceed 2000 characters'],
-        index: 'text'
+        maxlength: [5000, 'Description cannot exceed 5000 characters']
     },
     shortDescription: {
         type: String,
         maxlength: [500, 'Short description cannot exceed 500 characters']
     },
     
-    // Classification
+    // Categorization
     category: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
         required: true,
         index: true
     },
-    subcategory: {
+    subcategories: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Category',
-        index: true
-    },
-    brand: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Brand',
-        required: true,
-        index: true
-    },
-    
-    // Product Details
-    productType: {
+        ref: 'Category'
+    }],
+    tags: [{
         type: String,
-        enum: ['grocery', 'produce', 'meat', 'dairy', 'frozen', 'bakery', 'deli', 'pharmacy', 'household'],
-        required: true,
-        index: true
-    },
-    perishable: {
-        type: Boolean,
-        default: false,
-        index: true
-    },
-    organic: {
-        type: Boolean,
-        default: false,
-        index: true
-    },
-    glutenFree: {
-        type: Boolean,
-        default: false,
-        index: true
-    },
-    
-    // Inventory Management
-    inventory: inventorySchema,
+        trim: true
+    }],
     
     // Pricing
-    pricing: pricingSchema,
+    pricing: {
+        basePrice: {
+            type: Number,
+            required: true,
+            min: 0
+        },
+        salePrice: {
+            type: Number,
+            min: 0
+        },
+        costPrice: {
+            type: Number,
+            min: 0
+        },
+        taxRate: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 100
+        },
+        currency: {
+            type: String,
+            default: 'USD',
+            uppercase: true
+        }
+    },
     
-    // Physical Properties
-    package: {
+    // Inventory
+    inventory: inventorySchema,
+    
+    // Media
+    images: [{
+        url: {
+            type: String,
+            required: true
+        },
+        publicId: String,
+        alt: String,
+        isPrimary: {
+            type: Boolean,
+            default: false
+        },
+        order: {
+            type: Number,
+            default: 0
+        }
+    }],
+    videos: [{
+        url: String,
+        type: {
+            type: String,
+            enum: ['youtube', 'vimeo', 'direct']
+        },
+        thumbnail: String
+    }],
+    
+    // Specifications
+    specifications: [{
+        name: {
+            type: String,
+            required: true
+        },
+        value: {
+            type: String,
+            required: true
+        },
+        unit: String,
+        group: String
+    }],
+    
+    // Variants
+    variants: [{
+        name: String,
+        sku: String,
+        attributes: [{
+            name: String,
+            value: String
+        }],
+        pricing: {
+            basePrice: Number,
+            salePrice: Number
+        },
+        inventory: {
+            quantity: Number,
+            reserved: Number
+        },
+        images: [{
+            url: String,
+            publicId: String
+        }]
+    }],
+    
+    // Nutrition Information
+    nutrition: nutritionSchema,
+    
+    // Shipping
+    shipping: {
         weight: {
-            value: { type: Number, required: true },
-            unit: { type: String, enum: ['oz', 'lb', 'g', 'kg'], required: true }
+            value: Number,
+            unit: {
+                type: String,
+                enum: ['kg', 'g', 'lb', 'oz'],
+                default: 'kg'
+            }
         },
         dimensions: {
             length: Number,
             width: Number,
             height: Number,
-            unit: { type: String, enum: ['in', 'cm'], default: 'in' }
+            unit: {
+                type: String,
+                enum: ['cm', 'm', 'in', 'ft'],
+                default: 'cm'
+            }
         },
-        volume: {
-            value: Number,
-            unit: { type: String, enum: ['ml', 'l', 'fl_oz', 'gal'] }
+        freeShipping: {
+            type: Boolean,
+            default: false
         },
-        packSize: {
+        restrictions: [{
             type: String,
-            description: 'e.g., 6-pack, family size, etc.'
-        }
+            enum: ['hazmat', 'fragile', 'temperature-controlled', 'oversized']
+        }]
     },
     
-    // Nutritional Information
-    nutrition: nutritionSchema,
-    
-    // Ingredients and Allergens
-    ingredients: [{
-        name: { type: String, required: true },
-        percentage: Number,
-        order: { type: Number, required: true }
-    }],
-    allergens: [{
-        type: String,
-        enum: ['milk', 'eggs', 'fish', 'shellfish', 'tree_nuts', 'peanuts', 'wheat', 'soybeans', 'sesame']
-    }],
-    
-    // Expiration and Storage
-    storage: {
-        temperature: {
-            type: String,
-            enum: ['frozen', 'refrigerated', 'room_temperature'],
-            default: 'room_temperature'
-        },
-        shelfLife: {
-            value: Number,
-            unit: { type: String, enum: ['days', 'weeks', 'months', 'years'] }
-        },
-        storageInstructions: String
+    // SEO
+    seo: {
+        title: String,
+        description: String,
+        keywords: [String],
+        canonicalUrl: String
     },
     
-    // Media
-    images: [{
-        url: { type: String, required: true },
-        alt: String,
-        publicId: String,
-        isPrimary: { type: Boolean, default: false },
-        type: { type: String, enum: ['product', 'nutrition', 'ingredients'], default: 'product' }
-    }],
-    
-    // Status
+    // Status & Analytics
     status: {
         type: String,
-        enum: ['active', 'inactive', 'discontinued', 'seasonal', 'out_of_stock'],
-        default: 'active',
+        enum: ['draft', 'active', 'inactive', 'discontinued'],
+        default: 'draft',
         index: true
     },
-    availability: {
-        inStore: { type: Boolean, default: true },
-        online: { type: Boolean, default: true },
-        delivery: { type: Boolean, default: true },
-        pickup: { type: Boolean, default: true }
-    },
-    
-    // Supplier Information
-    supplier: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Supplier',
-        required: true,
-        index: true
-    },
-    supplierProductCode: String,
-    
-    // Analytics
     analytics: {
-        views: { type: Number, default: 0 },
-        searches: { type: Number, default: 0 },
-        addedToCart: { type: Number, default: 0 },
-        purchased: { type: Number, default: 0 },
-        rating: {
-            average: { type: Number, default: 0, min: 0, max: 5 },
-            count: { type: Number, default: 0 }
-        }
-    },
-    
-    // Seasonal and Promotional
-    seasonal: {
-        isseasonal: { type: Boolean, default: false },
-        season: {
-            type: String,
-            enum: ['spring', 'summer', 'fall', 'winter', 'holiday']
+        viewCount: {
+            type: Number,
+            default: 0
         },
-        availableMonths: [Number] // 1-12 for Jan-Dec
-    },
-    
-    // Related Products
-    relatedProducts: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product'
-    }],
-    alternatives: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product'
-    }],
-    
-    // Compliance
-    certifications: [{
-        type: String,
-        enum: ['usda_organic', 'non_gmo', 'fair_trade', 'kosher', 'halal', 'rainforest_alliance']
-    }],
-    
-    // Store Specific
-    storeSpecific: [{
-        store: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Store',
-            required: true
+        purchaseCount: {
+            type: Number,
+            default: 0
         },
-        localPrice: Number,
-        localAvailability: Boolean,
-        localPromotions: [{
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Promotion'
-        }]
-    }]
+        averageRating: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 5
+        },
+        reviewCount: {
+            type: Number,
+            default: 0
+        },
+        lastUpdated: Date
+    }
     
-}, { 
+}, {
     timestamps: true,
-    versionKey: true,
     indexes: [
-        { name: 'text', description: 'text' },
-        { category: 1, status: 1 },
-        { brand: 1, status: 1 },
-        { productType: 1, status: 1 },
-        { 'pricing.basePrice': 1 },
-        { perishable: 1, organic: 1 },
+        { slug: 1 },
+        { category: 1 },
         { 'inventory.sku': 1 },
-        { supplier: 1 },
-        { status: 1, availability: 1 },
-        { 'analytics.rating.average': -1 }
+        { status: 1 },
+        { 'pricing.basePrice': 1 },
+        { 'analytics.averageRating': -1 }
     ]
 });
 
-const Product = mongoose.model('Product', productSchema);
+// Method to check if product is in stock
+productSchema.methods.isInStock = function() {
+    return this.inventory.quantity.available > 0;
+};
+
+// Method to update inventory
+productSchema.methods.updateInventory = function(quantity, type = 'available') {
+    if (!['available', 'reserved', 'damaged', 'expired'].includes(type)) {
+        throw new Error('Invalid inventory type');
+    }
+    
+    this.inventory.quantity[type] = Math.max(0, this.inventory.quantity[type] + quantity);
+    this.inventory.lastRestocked = new Date();
+    
+    return this.save();
+};
+
+// Method to calculate discount percentage
+productSchema.methods.getDiscountPercentage = function() {
+    if (!this.pricing.salePrice) return 0;
+    return Math.round(((this.pricing.basePrice - this.pricing.salePrice) / this.pricing.basePrice) * 100);
+};
+
+// Method to update analytics
+productSchema.methods.updateAnalytics = async function(type) {
+    switch (type) {
+        case 'view':
+            this.analytics.viewCount += 1;
+            break;
+        case 'purchase':
+            this.analytics.purchaseCount += 1;
+            break;
+        case 'review':
+            const reviews = await this.model('Review').find({ product: this._id });
+            this.analytics.reviewCount = reviews.length;
+            this.analytics.averageRating = reviews.reduce((sum, review) => sum + review.rating.overall, 0) / reviews.length;
+            break;
+    }
+    
+    this.analytics.lastUpdated = new Date();
+    return this.save();
+};
+
+export const Product = mongoose.model('Product', productSchema);
