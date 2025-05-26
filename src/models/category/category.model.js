@@ -8,14 +8,14 @@ const categorySchema = new Schema({
         type: String,
         required: [true, 'Category name is required'],
         trim: true,
-        maxlength: [100, 'Category name cannot exceed 100 characters'],
-        index: true
+        maxlength: [100, 'Category name cannot exceed 100 characters']
     },
     slug: {
         type: String,
         required: true,
         unique: true,
         lowercase: true,
+        trim: true,
         index: true
     },
     description: {
@@ -35,7 +35,8 @@ const categorySchema = new Schema({
     }],
     level: {
         type: Number,
-        default: 0
+        default: 0,
+        min: 0
     },
     
     // Classification
@@ -68,7 +69,7 @@ const categorySchema = new Schema({
         publicId: String,
         alt: String
     },
-    icon: {
+    banner: {
         url: String,
         publicId: String,
         alt: String
@@ -93,26 +94,25 @@ const categorySchema = new Schema({
             enum: ['text', 'number', 'boolean', 'select', 'multiselect', 'date'],
             required: true
         },
-        options: [String], // For select/multiselect types
         required: {
             type: Boolean,
             default: false
         },
-        searchable: {
-            type: Boolean,
-            default: false
-        },
-        filterable: {
-            type: Boolean,
-            default: false
-        },
-        displayOrder: {
-            type: Number,
-            default: 0
+        options: [String], // For select/multiselect types
+        validation: {
+            min: Number,
+            max: Number,
+            pattern: String
         }
     }],
     
-    // Analytics
+    // Status & Analytics
+    status: {
+        type: String,
+        enum: ['active', 'inactive', 'archived'],
+        default: 'active',
+        index: true
+    },
     analytics: {
         productCount: {
             type: Number,
@@ -122,26 +122,17 @@ const categorySchema = new Schema({
             type: Number,
             default: 0
         },
-        lastViewed: Date
-    },
-    
-    // Status
-    status: {
-        type: String,
-        enum: ['active', 'inactive', 'archived'],
-        default: 'active',
-        index: true
+        lastUpdated: Date
     }
     
 }, {
     timestamps: true,
     indexes: [
-        { name: 1, status: 1 },
-        { parent: 1, status: 1 },
-        { type: 1, status: 1 },
-        { featured: 1, status: 1 },
-        { 'analytics.productCount': -1 },
-        { displayOrder: 1 }
+        { slug: 1 },
+        { parent: 1 },
+        { ancestors: 1 },
+        { status: 1 },
+        { 'analytics.productCount': -1 }
     ]
 });
 
@@ -153,10 +144,46 @@ categorySchema.pre('save', function(next) {
     next();
 });
 
-// Virtual for full path
-categorySchema.virtual('fullPath').get(function() {
+// Method to get full path
+categorySchema.methods.getFullPath = function() {
     return this.ancestors.map(ancestor => ancestor.name).concat(this.name).join(' > ');
-});
+};
+
+// Method to check if category is leaf
+categorySchema.methods.isLeaf = async function() {
+    const childCount = await this.model('Category').countDocuments({ parent: this._id });
+    return childCount === 0;
+};
+
+// Method to update product count
+categorySchema.methods.updateProductCount = async function() {
+    const count = await this.model('Product').countDocuments({ category: this._id });
+    this.analytics.productCount = count;
+    this.analytics.lastUpdated = new Date();
+    return this.save();
+};
+
+// Static method to get category tree
+categorySchema.statics.getCategoryTree = async function() {
+    const categories = await this.find().sort('level name');
+    const tree = [];
+    const map = {};
+
+    categories.forEach(category => {
+        map[category._id] = category;
+        category.children = [];
+    });
+
+    categories.forEach(category => {
+        if (category.parent) {
+            map[category.parent].children.push(category);
+        } else {
+            tree.push(category);
+        }
+    });
+
+    return tree;
+};
 
 // Method to get all children categories
 categorySchema.methods.getChildren = async function() {

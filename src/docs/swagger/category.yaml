@@ -1,0 +1,610 @@
+paths:
+  /categories:
+    get:
+      tags:
+        - Categories
+      summary: Get root categories
+      description: Get all root-level categories
+      responses:
+        '200':
+          description: Root categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      categories:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+    post:
+      tags:
+        - Categories
+      summary: Create a new category
+      description: Create a new category (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '201':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      category:
+                        $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /categories/tree:
+    get:
+      tags:
+        - Categories
+      summary: Get category tree
+      description: Get the complete category hierarchy
+      responses:
+        '200':
+          description: Category tree retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      tree:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CategoryTree'
+
+  /categories/{id}:
+    get:
+      tags:
+        - Categories
+      summary: Get category by ID
+      description: Get a category by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Category retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      category:
+                        $ref: '#/components/schemas/Category'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags:
+        - Categories
+      summary: Update category (PATCH)
+      description: Partially update a category (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '200':
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      category:
+                        $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Categories
+      summary: Update category (PUT)
+      description: Fully update a category (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '200':
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      category:
+                        $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Categories
+      summary: Delete category
+      description: Delete a category (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Category deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Category deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /categories/{id}/path:
+    get:
+      tags:
+        - Categories
+      summary: Get category path
+      description: Get the full path of a category from root
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Category path retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      path:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /categories/{id}/subcategories:
+    get:
+      tags:
+        - Categories
+      summary: Get subcategories
+      description: Get all subcategories of a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Subcategories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      subcategories:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /categories/slug/{slug}:
+    get:
+      tags:
+        - Categories
+      summary: Get category by slug
+      description: Get a category by its slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Category slug
+      responses:
+        '200':
+          description: Category retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      category:
+                        $ref: '#/components/schemas/Category'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /categories/{id}/statistics:
+    get:
+      tags:
+        - Categories
+      summary: Get category statistics
+      description: Get statistics for a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      responses:
+        '200':
+          description: Category statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      statistics:
+                        $ref: '#/components/schemas/CategoryStatistics'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /categories/{id}/move:
+    patch:
+      tags:
+        - Categories
+      summary: Move category
+      description: Move a category to a new parent (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newParentId:
+                  type: string
+                  description: ID of the new parent category (null for root level)
+                  example: 507f1f77bcf86cd799439011
+      responses:
+        '200':
+          description: Category moved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      category:
+                        $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  schemas:
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        name:
+          type: string
+          example: Electronics
+        slug:
+          type: string
+          example: electronics
+        description:
+          type: string
+          example: Electronic devices and accessories
+        parent:
+          type: string
+          example: 507f1f77bcf86cd799439012
+        ancestors:
+          type: array
+          items:
+            type: string
+          example: ['507f1f77bcf86cd799439012']
+        level:
+          type: integer
+          example: 1
+        image:
+          type: string
+          example: https://example.com/images/electronics.jpg
+        banner:
+          type: string
+          example: https://example.com/banners/electronics.jpg
+        attributes:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: Brand
+              type:
+                type: string
+                enum: [text, number, boolean, select, multiselect]
+                example: select
+              required:
+                type: boolean
+                example: true
+              options:
+                type: array
+                items:
+                  type: string
+                example: ['Apple', 'Samsung', 'Sony']
+        seo:
+          type: object
+          properties:
+            title:
+              type: string
+              example: Electronics - Best Deals on Electronic Devices
+            description:
+              type: string
+              example: Find the best deals on electronic devices and accessories
+            keywords:
+              type: array
+              items:
+                type: string
+              example: ['electronics', 'devices', 'accessories']
+        status:
+          type: string
+          enum: [active, inactive, archived]
+          example: active
+        analytics:
+          type: object
+          properties:
+            productCount:
+              type: integer
+              example: 150
+            viewCount:
+              type: integer
+              example: 1000
+            lastUpdated:
+              type: string
+              format: date-time
+              example: '2024-03-26T04:01:27.376Z'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-03-26T04:01:27.376Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-03-26T04:01:27.376Z'
+
+    CategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Electronics
+        description:
+          type: string
+          example: Electronic devices and accessories
+        parent:
+          type: string
+          example: 507f1f77bcf86cd799439012
+        image:
+          type: string
+          example: https://example.com/images/electronics.jpg
+        banner:
+          type: string
+          example: https://example.com/banners/electronics.jpg
+        attributes:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: Brand
+              type:
+                type: string
+                enum: [text, number, boolean, select, multiselect]
+                example: select
+              required:
+                type: boolean
+                example: true
+              options:
+                type: array
+                items:
+                  type: string
+                example: ['Apple', 'Samsung', 'Sony']
+        seo:
+          type: object
+          properties:
+            title:
+              type: string
+              example: Electronics - Best Deals on Electronic Devices
+            description:
+              type: string
+              example: Find the best deals on electronic devices and accessories
+            keywords:
+              type: array
+              items:
+                type: string
+              example: ['electronics', 'devices', 'accessories']
+        status:
+          type: string
+          enum: [active, inactive, archived]
+          example: active
+
+    CategoryTree:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        name:
+          type: string
+          example: Electronics
+        slug:
+          type: string
+          example: electronics
+        level:
+          type: integer
+          example: 1
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryTree'
+
+    CategoryStatistics:
+      type: object
+      properties:
+        productCount:
+          type: integer
+          example: 150
+        subcategoryCount:
+          type: integer
+          example: 5
+        level:
+          type: integer
+          example: 1
+        path:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category' 
