@@ -13,6 +13,7 @@ import routes from '../routes/index.js';
 import { errorHandler } from '../middlewares/error-handler.js';
 import { notFound } from '../middlewares/not-found.js';
 import { cleanupRateLimiter } from '../utils/rate-limiter.js';
+import { swaggerDocs, swaggerSetup } from '../middlewares/swagger.js';
 import env from './env.js';
 
 export const createApp = () => {
@@ -56,6 +57,11 @@ export const createApp = () => {
   // Static files
   app.use(express.static('public'));
 
+  // Swagger Documentation
+  if (env.NODE_ENV !== 'production') {
+    app.use('/api-docs', swaggerDocs, swaggerSetup);
+  }
+
   // Routes
   app.use('/api/v1', routes);
 
@@ -75,7 +81,6 @@ export const createApp = () => {
 
   // Handle process termination
   process.on('SIGTERM', cleanup);
-  process.on('SIGINT', cleanup);
 
   return app;
 };
