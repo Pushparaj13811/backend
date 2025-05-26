@@ -2,16 +2,41 @@ paths:
   /users/register:
     post:
       tags:
-        - Authentication
+        - Users
       summary: Register a new user
       description: Create a new user account with email and phone verification
-      operationId: registerUser
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserRegistration'
+              type: object
+              required:
+                - firstName
+                - lastName
+                - email
+                - password
+                - phone
+              properties:
+                firstName:
+                  type: string
+                  example: John
+                lastName:
+                  type: string
+                  example: Doe
+                email:
+                  type: string
+                  format: email
+                  example: john.doe@example.com
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: Password123!
+                phone:
+                  type: string
+                  pattern: '^\+[1-9]\d{1,14}$'
+                  example: '+1234567890'
       responses:
         '201':
           description: User registered successfully
@@ -20,35 +45,25 @@ paths:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
-                    example: true
+                  status:
+                    type: string
+                    example: success
                   data:
                     type: object
                     properties:
-                      userId:
-                        type: string
-                        example: 507f1f77bcf86cd799439011
+                      user:
+                        $ref: '#/components/schemas/User'
         '400':
-          description: Invalid input or user already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '429':
-          description: Too many requests
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/TooManyRequests'
 
-  /users/verify-email:
+  /users/verify/email:
     post:
       tags:
-        - Authentication
+        - Users
       summary: Verify email OTP
       description: Verify user's email using OTP
-      operationId: verifyEmailOTP
       requestBody:
         required: true
         content:
@@ -62,37 +77,35 @@ paths:
                 email:
                   type: string
                   format: email
-                  example: user@example.com
+                  example: john.doe@example.com
                 otp:
                   type: string
-                  example: 123456
+                  pattern: '^\d{6}$'
+                  example: '123456'
       responses:
         '200':
           description: Email verified successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Success'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/User'
         '400':
-          description: Invalid OTP or user not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '429':
-          description: Too many requests
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/TooManyRequests'
 
-  /users/verify-phone:
+  /users/verify/phone:
     post:
       tags:
-        - Authentication
+        - Users
       summary: Verify phone OTP
       description: Verify user's phone number using OTP
-      operationId: verifyPhoneOTP
       requestBody:
         required: true
         content:
@@ -105,37 +118,36 @@ paths:
               properties:
                 phone:
                   type: string
-                  example: +1234567890
+                  pattern: '^\+[1-9]\d{1,14}$'
+                  example: '+1234567890'
                 otp:
                   type: string
-                  example: 123456
+                  pattern: '^\d{6}$'
+                  example: '123456'
       responses:
         '200':
           description: Phone verified successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Success'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/User'
         '400':
-          description: Invalid OTP or user not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '429':
-          description: Too many requests
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/TooManyRequests'
 
-  /users/resend-verification:
+  /users/resend-otp:
     post:
       tags:
-        - Authentication
+        - Users
       summary: Resend verification OTP
-      description: Resend verification OTP for email or phone
-      operationId: resendVerificationOTP
+      description: Resend verification OTP to email or phone
       requestBody:
         required: true
         content:
@@ -152,100 +164,177 @@ paths:
                   example: email
                 identifier:
                   type: string
-                  example: user@example.com
+                  example: john.doe@example.com
       responses:
         '200':
           description: OTP sent successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Success'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Verification code sent successfully
         '400':
-          description: Invalid request or already verified
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '429':
-          description: Too many requests
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/TooManyRequests'
 
-  /users/login:
+  /users/resend-otp/authenticated:
     post:
       tags:
-        - Authentication
-      summary: Login user
-      description: Authenticate user and return JWT tokens
-      operationId: loginUser
+        - Users
+      summary: Resend verification OTP (Authenticated)
+      description: Resend verification OTP to email or phone (requires authentication)
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserLogin'
+              type: object
+              required:
+                - type
+                - identifier
+                - password
+              properties:
+                type:
+                  type: string
+                  enum: [email, phone]
+                  example: email
+                identifier:
+                  type: string
+                  example: john.doe@example.com
+                password:
+                  type: string
+                  format: password
+                  example: Password123!
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Verification code sent successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /users/login:
+    post:
+      tags:
+        - Users
+      summary: Login user
+      description: Authenticate user and get access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: john.doe@example.com
+                password:
+                  type: string
+                  format: password
+                  example: Password123!
       responses:
         '200':
           description: Login successful
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponse'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      accessToken:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      refreshToken:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         '401':
-          description: Invalid credentials
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '429':
-          description: Too many requests
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/TooManyRequests'
 
   /users/refresh-token:
     post:
       tags:
-        - Authentication
+        - Users
       summary: Refresh access token
       description: Get a new access token using refresh token
-      operationId: refreshToken
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RefreshToken'
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       responses:
         '200':
           description: Token refreshed successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      refreshToken:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         '401':
-          description: Invalid refresh token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '429':
-          description: Too many requests
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/TooManyRequests'
 
   /users/logout:
     post:
       tags:
-        - Authentication
+        - Users
       summary: Logout user
-      description: Invalidate user's refresh token
-      operationId: logoutUser
+      description: Invalidate the current session
       security:
         - bearerAuth: []
       responses:
@@ -254,21 +343,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Success'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Logged out successfully
         '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
 
   /users/profile:
     get:
       tags:
-        - User
+        - Users
       summary: Get user profile
-      description: Get current user's profile information
-      operationId: getProfile
+      description: Get the authenticated user's profile information
       security:
         - bearerAuth: []
       responses:
@@ -277,20 +368,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfile'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/User'
         '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-    put:
+          $ref: '#/components/responses/Unauthorized'
+    patch:
       tags:
-        - User
+        - Users
       summary: Update user profile
-      description: Update current user's profile information
-      operationId: updateProfile
+      description: Update the authenticated user's profile information
       security:
         - bearerAuth: []
       requestBody:
@@ -298,34 +389,60 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserProfileUpdate'
+              type: object
+              properties:
+                firstName:
+                  type: string
+                  example: John
+                lastName:
+                  type: string
+                  example: Doe
+                phone:
+                  type: string
+                  pattern: '^\+[1-9]\d{1,14}$'
+                  example: '+1234567890'
+                address:
+                  type: object
+                  properties:
+                    street:
+                      type: string
+                      example: 123 Main St
+                    city:
+                      type: string
+                      example: New York
+                    state:
+                      type: string
+                      example: NY
+                    zipCode:
+                      type: string
+                      example: '10001'
+                    country:
+                      type: string
+                      example: USA
       responses:
         '200':
           description: Profile updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfile'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/User'
         '400':
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
 
   /users/change-password:
-    post:
+    patch:
       tags:
-        - User
+        - Users
       summary: Change password
       description: Change user's password
-      operationId: changePassword
       security:
         - bearerAuth: []
       requestBody:
@@ -341,340 +458,144 @@ paths:
                 currentPassword:
                   type: string
                   format: password
-                  example: currentPassword123
+                  example: CurrentPassword123!
                 newPassword:
                   type: string
                   format: password
                   minLength: 8
-                  example: newPassword123
+                  example: NewPassword123!
       responses:
         '200':
           description: Password changed successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Success'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Password changed successfully
         '400':
-          description: Invalid current password
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
 
 components:
   schemas:
-    UserRegistration:
-      type: object
-      required:
-        - email
-        - password
-        - firstName
-        - lastName
-      properties:
-        email:
-          type: string
-          format: email
-          example: user@example.com
-        password:
-          type: string
-          format: password
-          minLength: 8
-          example: password123
-        firstName:
-          type: string
-          example: John
-        lastName:
-          type: string
-          example: Doe
-        phone:
-          type: string
-          example: +1234567890
-        preferences:
-          type: object
-          properties:
-            language:
-              type: string
-              enum: [en, es, fr, de, it, pt, zh, ja, ko]
-              default: en
-            currency:
-              type: string
-              default: USD
-            timezone:
-              type: string
-              default: UTC
-            theme:
-              type: string
-              enum: [light, dark, system]
-              default: system
-            newsletter:
-              type: boolean
-              default: true
-            smsNotifications:
-              type: boolean
-              default: false
-            emailNotifications:
-              type: boolean
-              default: true
-
-    UserLogin:
-      type: object
-      required:
-        - email
-        - password
-      properties:
-        email:
-          type: string
-          format: email
-          example: user@example.com
-        password:
-          type: string
-          format: password
-          example: password123
-        deviceInfo:
-          type: object
-          properties:
-            userAgent:
-              type: string
-              example: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)
-            ip:
-              type: string
-              example: 192.168.1.1
-            deviceId:
-              type: string
-              example: device123
-
-    LoginResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            user:
-              $ref: '#/components/schemas/UserProfile'
-            tokens:
-              type: object
-              properties:
-                accessToken:
-                  type: string
-                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-                refreshToken:
-                  type: string
-                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-    RefreshToken:
-      type: object
-      required:
-        - refreshToken
-      properties:
-        refreshToken:
-          type: string
-          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-        deviceInfo:
-          type: object
-          properties:
-            userAgent:
-              type: string
-              example: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)
-            ip:
-              type: string
-              example: 192.168.1.1
-            deviceId:
-              type: string
-              example: device123
-
-    TokenResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            accessToken:
-              type: string
-              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-            refreshToken:
-              type: string
-              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-    UserProfile:
+    User:
       type: object
       properties:
         id:
           type: string
           example: 507f1f77bcf86cd799439011
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
         email:
           type: string
           format: email
-          example: user@example.com
-        firstName:
-          type: string
-          example: John
-        lastName:
-          type: string
-          example: Doe
+          example: john.doe@example.com
         phone:
           type: string
-          example: +1234567890
+          example: '+1234567890'
         role:
           type: string
-          enum: [customer, admin, vendor, delivery-partner, super-admin]
-          example: customer
+          enum: [user, admin]
+          example: user
         status:
           type: string
-          enum: [active, inactive, suspended, pending-verification]
+          enum: [active, inactive, suspended]
           example: active
-        profile:
+        emailVerification:
           type: object
           properties:
-            avatar:
-              type: object
-              properties:
-                url:
-                  type: string
-                  example: https://example.com/avatar.jpg
-                publicId:
-                  type: string
-                  example: avatar123
-            dateOfBirth:
-              type: string
-              format: date
-              example: 1990-01-01
-            gender:
-              type: string
-              enum: [male, female, other, prefer-not-to-say]
-              example: male
-            bio:
-              type: string
-              example: Software developer
-        preferences:
-          type: object
-          properties:
-            language:
-              type: string
-              enum: [en, es, fr, de, it, pt, zh, ja, ko]
-              example: en
-            currency:
-              type: string
-              example: USD
-            timezone:
-              type: string
-              example: UTC
-            theme:
-              type: string
-              enum: [light, dark, system]
-              example: system
-            newsletter:
+            isVerified:
               type: boolean
               example: true
-            smsNotifications:
-              type: boolean
-              example: false
-            emailNotifications:
-              type: boolean
-              example: true
-        analytics:
+            verifiedAt:
+              type: string
+              format: date-time
+              example: '2024-03-26T04:01:27.376Z'
+        phoneVerification:
           type: object
           properties:
-            totalOrders:
-              type: number
-              example: 10
-            totalSpent:
-              type: number
-              example: 1000.50
-            averageOrderValue:
-              type: number
-              example: 100.05
-            lastOrderDate:
+            isVerified:
+              type: boolean
+              example: true
+            verifiedAt:
               type: string
               format: date-time
-              example: 2024-03-15T10:30:00Z
-            firstOrderDate:
+              example: '2024-03-26T04:01:27.376Z'
+        address:
+          type: object
+          properties:
+            street:
               type: string
-              format: date-time
-              example: 2024-01-01T10:30:00Z
-            loyaltyPoints:
-              type: number
-              example: 500
-            lastLogin:
+              example: 123 Main St
+            city:
               type: string
-              format: date-time
-              example: 2024-03-15T10:30:00Z
-            loginCount:
-              type: number
-              example: 50
-            sessionDuration:
-              type: number
-              example: 3600
+              example: New York
+            state:
+              type: string
+              example: NY
+            zipCode:
+              type: string
+              example: '10001'
+            country:
+              type: string
+              example: USA
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-03-26T04:01:27.376Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-03-26T04:01:27.376Z'
 
-    UserProfileUpdate:
-      type: object
-      properties:
-        firstName:
-          type: string
-          example: John
-        lastName:
-          type: string
-          example: Doe
-        phone:
-          type: string
-          example: +1234567890
-        profile:
-          type: object
-          properties:
-            avatar:
-              type: object
-              properties:
-                url:
-                  type: string
-                  example: https://example.com/avatar.jpg
-                publicId:
-                  type: string
-                  example: avatar123
-            dateOfBirth:
-              type: string
-              format: date
-              example: 1990-01-01
-            gender:
-              type: string
-              enum: [male, female, other, prefer-not-to-say]
-              example: male
-            bio:
-              type: string
-              example: Software developer
-        preferences:
-          type: object
-          properties:
-            language:
-              type: string
-              enum: [en, es, fr, de, it, pt, zh, ja, ko]
-              example: en
-            currency:
-              type: string
-              example: USD
-            timezone:
-              type: string
-              example: UTC
-            theme:
-              type: string
-              enum: [light, dark, system]
-              example: system
-            newsletter:
-              type: boolean
-              example: true
-            smsNotifications:
-              type: boolean
-              example: false
-            emailNotifications:
-              type: boolean
-              example: true 
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: error
+              message:
+                type: string
+                example: Invalid input data
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: error
+              message:
+                type: string
+                example: Please log in to access this resource
+    TooManyRequests:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: error
+              message:
+                type: string
+                example: Too many requests from this IP, please try again later 
