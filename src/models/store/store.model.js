@@ -1,24 +1,99 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose from 'mongoose';
 
-const storeSchema = new Schema({
+const storeSchema = new mongoose.Schema({
     // Basic Information
     name: {
         type: String,
-        required: [true, 'Store name is required'],
-        trim: true,
-        maxlength: [100, 'Store name cannot exceed 100 characters']
+        required: true,
+        trim: true
     },
-    code: {
+    slug: {
         type: String,
         required: true,
         unique: true,
-        uppercase: true,
-        trim: true,
-        index: true
+        lowercase: true
     },
     description: {
         type: String,
-        maxlength: [1000, 'Description cannot exceed 1000 characters']
+        trim: true
+    },
+    logo: {
+        type: String
+    },
+    banner: {
+        type: String
+    },
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    contact: {
+        email: {
+            type: String,
+            required: true
+        },
+        phone: {
+            type: String,
+            required: true
+        },
+        address: {
+            street: String,
+            city: String,
+            state: String,
+            country: String,
+            postalCode: String
+        }
+    },
+    settings: {
+        currency: {
+            type: String,
+            default: 'USD'
+        },
+        taxRate: {
+            type: Number,
+            default: 0
+        },
+        shippingPolicy: String,
+        returnPolicy: String,
+        privacyPolicy: String,
+        termsOfService: String
+    },
+    social: {
+        website: String,
+        facebook: String,
+        twitter: String,
+        instagram: String,
+        linkedin: String
+    },
+    status: {
+        type: String,
+        enum: ['active', 'inactive', 'suspended', 'pending'],
+        default: 'pending'
+    },
+    rating: {
+        average: {
+            type: Number,
+            default: 0
+        },
+        count: {
+            type: Number,
+            default: 0
+        }
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationDate: Date,
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     },
     
     // Location
@@ -65,24 +140,6 @@ const storeSchema = new Schema({
         timezone: {
             type: String,
             required: true
-        }
-    },
-    
-    // Contact Information
-    contact: {
-        phone: {
-            type: String,
-            required: true
-        },
-        email: {
-            type: String,
-            required: true,
-            lowercase: true,
-            match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email']
-        },
-        emergency: {
-            phone: String,
-            email: String
         }
     },
     
@@ -225,12 +282,6 @@ const storeSchema = new Schema({
     },
     
     // Status & Analytics
-    status: {
-        type: String,
-        enum: ['active', 'inactive', 'temporary-closed', 'permanent-closed'],
-        default: 'active',
-        index: true
-    },
     analytics: {
         customerCount: {
             type: Number,
@@ -247,17 +298,28 @@ const storeSchema = new Schema({
             default: 0
         }
     }
-    
 }, {
     timestamps: true,
     indexes: [
-        { code: 1 },
+        { slug: 1 },
         { 'location.coordinates': '2dsphere' },
         { status: 1 },
         { 'management.manager': 1 },
         { 'analytics.customerCount': -1 }
     ]
 });
+
+// Add text index for search
+storeSchema.index({ name: 'text', description: 'text' });
+
+// Add compound index for slug
+storeSchema.index({ slug: 1 }, { unique: true });
+
+// Add index for status
+storeSchema.index({ status: 1 });
+
+// Add index for owner
+storeSchema.index({ owner: 1 });
 
 // Method to check if store is open
 storeSchema.methods.isOpen = function() {

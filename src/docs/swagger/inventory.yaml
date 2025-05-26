@@ -1,0 +1,504 @@
+paths:
+  /inventory:
+    get:
+      tags:
+        - Inventory
+      summary: Get inventory items
+      description: Get a list of inventory items with optional filtering
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [in-stock, low-stock, out-of-stock, reserved, damaged]
+          description: Inventory status to filter
+        - name: warehouse
+          in: query
+          schema:
+            type: string
+          description: Warehouse ID to filter
+        - name: product
+          in: query
+          schema:
+            type: string
+          description: Product ID to filter
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search term for product name or SKU
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: Inventory items retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InventoryItem'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+    post:
+      tags:
+        - Inventory
+      summary: Create a new inventory item
+      description: Create a new inventory item (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryInput'
+      responses:
+        '201':
+          description: Inventory item created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      item:
+                        $ref: '#/components/schemas/InventoryItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /inventory/{id}:
+    get:
+      tags:
+        - Inventory
+      summary: Get inventory item by ID
+      description: Get an inventory item by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Inventory item ID
+      responses:
+        '200':
+          description: Inventory item retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      item:
+                        $ref: '#/components/schemas/InventoryItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags:
+        - Inventory
+      summary: Update inventory item (PATCH)
+      description: Partially update an inventory item (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Inventory item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryInput'
+      responses:
+        '200':
+          description: Inventory item updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      item:
+                        $ref: '#/components/schemas/InventoryItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Inventory
+      summary: Delete inventory item
+      description: Delete an inventory item (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Inventory item ID
+      responses:
+        '200':
+          description: Inventory item deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Inventory item deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /inventory/{id}/status:
+    patch:
+      tags:
+        - Inventory
+      summary: Update inventory item status
+      description: Update an inventory item's status (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Inventory item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [in-stock, low-stock, out-of-stock, reserved, damaged]
+                  example: in-stock
+      responses:
+        '200':
+          description: Inventory item status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      item:
+                        $ref: '#/components/schemas/InventoryItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /inventory/warehouse/{warehouseId}:
+    get:
+      tags:
+        - Inventory
+      summary: Get inventory by warehouse
+      description: Get all inventory items for a specific warehouse
+      parameters:
+        - name: warehouseId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Warehouse ID
+      responses:
+        '200':
+          description: Warehouse inventory retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InventoryItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /inventory/product/{productId}:
+    get:
+      tags:
+        - Inventory
+      summary: Get inventory by product
+      description: Get all inventory items for a specific product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: Product inventory retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InventoryItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /inventory/status/{status}:
+    get:
+      tags:
+        - Inventory
+      summary: Get inventory by status
+      description: Get all inventory items with a specific status
+      parameters:
+        - name: status
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [in-stock, low-stock, out-of-stock, reserved, damaged]
+          description: Inventory status
+      responses:
+        '200':
+          description: Status inventory retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InventoryItem'
+
+components:
+  schemas:
+    InventoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        product:
+          type: string
+          example: 507f1f77bcf86cd799439012
+        warehouse:
+          type: string
+          example: 507f1f77bcf86cd799439013
+        quantity:
+          type: number
+          example: 100
+        unit:
+          type: string
+          enum: [piece, kg, liter, box, pallet]
+          example: piece
+        status:
+          type: string
+          enum: [in-stock, low-stock, out-of-stock, reserved, damaged]
+          example: in-stock
+        location:
+          type: object
+          properties:
+            aisle:
+              type: string
+              example: A1
+            shelf:
+              type: string
+              example: S2
+            bin:
+              type: string
+              example: B3
+        batch:
+          type: string
+          example: BATCH-2023-001
+        expiryDate:
+          type: string
+          format: date
+          example: '2023-12-31'
+        purchasePrice:
+          type: number
+          example: 10.99
+        sellingPrice:
+          type: number
+          example: 19.99
+        minStockLevel:
+          type: number
+          example: 20
+        maxStockLevel:
+          type: number
+          example: 200
+        reorderPoint:
+          type: number
+          example: 50
+        lastStockCheck:
+          type: string
+          format: date-time
+          example: '2023-01-01T00:00:00Z'
+        notes:
+          type: string
+          example: Fragile items, handle with care
+        createdBy:
+          type: string
+          example: 507f1f77bcf86cd799439014
+        updatedBy:
+          type: string
+          example: 507f1f77bcf86cd799439014
+        createdAt:
+          type: string
+          format: date-time
+          example: '2023-01-01T00:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2023-01-01T00:00:00Z'
+
+    InventoryInput:
+      type: object
+      required:
+        - product
+        - warehouse
+        - quantity
+        - unit
+      properties:
+        product:
+          type: string
+          example: 507f1f77bcf86cd799439012
+        warehouse:
+          type: string
+          example: 507f1f77bcf86cd799439013
+        quantity:
+          type: number
+          example: 100
+        unit:
+          type: string
+          enum: [piece, kg, liter, box, pallet]
+          example: piece
+        status:
+          type: string
+          enum: [in-stock, low-stock, out-of-stock, reserved, damaged]
+          example: in-stock
+        location:
+          type: object
+          properties:
+            aisle:
+              type: string
+              example: A1
+            shelf:
+              type: string
+              example: S2
+            bin:
+              type: string
+              example: B3
+        batch:
+          type: string
+          example: BATCH-2023-001
+        expiryDate:
+          type: string
+          format: date
+          example: '2023-12-31'
+        purchasePrice:
+          type: number
+          example: 10.99
+        sellingPrice:
+          type: number
+          example: 19.99
+        minStockLevel:
+          type: number
+          example: 20
+        maxStockLevel:
+          type: number
+          example: 200
+        reorderPoint:
+          type: number
+          example: 50
+        notes:
+          type: string
+          example: Fragile items, handle with care 

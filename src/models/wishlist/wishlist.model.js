@@ -1,9 +1,14 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose from 'mongoose';
 
-const wishlistItemSchema = new Schema({
+const wishlistItemSchema = new mongoose.Schema({
     product: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Product',
+        required: true
+    },
+    store: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Store',
         required: true
     },
     addedAt: {
@@ -26,22 +31,22 @@ const wishlistItemSchema = new Schema({
     }
 });
 
-const wishlistSchema = new Schema({
+const wishlistSchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
-        index: true
+        required: true
     },
     name: {
         type: String,
         required: true,
         trim: true,
-        maxlength: [100, 'Wishlist name cannot exceed 100 characters']
+        maxlength: 100
     },
     description: {
         type: String,
-        maxlength: [500, 'Description cannot exceed 500 characters']
+        trim: true,
+        maxlength: 500
     },
     isDefault: {
         type: Boolean,
@@ -52,6 +57,15 @@ const wishlistSchema = new Schema({
         default: false
     },
     items: [wishlistItemSchema],
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
     
     // Sharing
     sharedWith: [{
@@ -82,14 +96,27 @@ const wishlistSchema = new Schema({
             default: Date.now
         }
     }
-    
 }, {
-    timestamps: true,
-    indexes: [
-        { user: 1, isDefault: 1 },
-        { user: 1, isPublic: 1 },
-        { 'analytics.lastUpdated': -1 }
-    ]
+    timestamps: true
+});
+
+// Add indexes
+wishlistSchema.index({ user: 1 });
+wishlistSchema.index({ user: 1, isDefault: 1 });
+wishlistSchema.index({ isPublic: 1 });
+wishlistSchema.index({ 'analytics.lastUpdated': -1 });
+wishlistSchema.index({ name: 'text', description: 'text' });
+
+// Pre-save middleware to ensure only one default wishlist per user
+wishlistSchema.pre('save', async function(next) {
+    if (this.isDefault) {
+        const Wishlist = mongoose.model('Wishlist');
+        await Wishlist.updateMany(
+            { user: this.user, _id: { $ne: this._id } },
+            { $set: { isDefault: false } }
+        );
+    }
+    next();
 });
 
 // Method to add item to wishlist
@@ -112,6 +139,7 @@ wishlistSchema.methods.addItem = async function(productId, options = {}) {
     
     this.items.push({
         product: productId,
+        store: product.store,
         ...options,
         addedAt: new Date()
     });
@@ -166,7 +194,7 @@ wishlistSchema.methods.moveToCart = async function(productId, quantity = 1) {
     if (!cart) {
         cart = new Cart({
             user: this.user,
-            store: item.product.store // Assuming product has store reference
+            store: item.store
         });
     }
     

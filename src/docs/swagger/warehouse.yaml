@@ -1,0 +1,747 @@
+paths:
+  /warehouses:
+    get:
+      tags:
+        - Warehouses
+      summary: Get warehouses
+      description: Get a list of warehouses with optional filtering
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, maintenance, closed]
+          description: Warehouse status to filter
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [main, regional, distribution, retail, other]
+          description: Warehouse type to filter
+        - name: feature
+          in: query
+          schema:
+            type: string
+            enum: [temperature-controlled, hazardous-materials, cross-docking, loading-docks, security-system, cctv, fire-protection]
+          description: Warehouse feature to filter
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search term for warehouse name, code, or location
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: Warehouses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      warehouses:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Warehouse'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+    post:
+      tags:
+        - Warehouses
+      summary: Create a new warehouse
+      description: Create a new warehouse (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseInput'
+      responses:
+        '201':
+          description: Warehouse created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      warehouse:
+                        $ref: '#/components/schemas/Warehouse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /warehouses/{id}:
+    get:
+      tags:
+        - Warehouses
+      summary: Get warehouse by ID
+      description: Get a warehouse by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Warehouse ID
+      responses:
+        '200':
+          description: Warehouse retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      warehouse:
+                        $ref: '#/components/schemas/Warehouse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags:
+        - Warehouses
+      summary: Update warehouse (PATCH)
+      description: Partially update a warehouse (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Warehouse ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseInput'
+      responses:
+        '200':
+          description: Warehouse updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      warehouse:
+                        $ref: '#/components/schemas/Warehouse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Warehouses
+      summary: Delete warehouse
+      description: Delete a warehouse (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Warehouse ID
+      responses:
+        '200':
+          description: Warehouse deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Warehouse deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /warehouses/{id}/status:
+    patch:
+      tags:
+        - Warehouses
+      summary: Update warehouse status
+      description: Update a warehouse's status (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Warehouse ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [active, inactive, maintenance, closed]
+                  example: active
+      responses:
+        '200':
+          description: Warehouse status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      warehouse:
+                        $ref: '#/components/schemas/Warehouse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /warehouses/active:
+    get:
+      tags:
+        - Warehouses
+      summary: Get active warehouses
+      description: Get a list of all active warehouses
+      responses:
+        '200':
+          description: Active warehouses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      warehouses:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Warehouse'
+
+  /warehouses/type/{type}:
+    get:
+      tags:
+        - Warehouses
+      summary: Get warehouses by type
+      description: Get a list of warehouses by type
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [main, regional, distribution, retail, other]
+          description: Warehouse type
+      responses:
+        '200':
+          description: Warehouses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      warehouses:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Warehouse'
+
+  /warehouses/feature/{feature}:
+    get:
+      tags:
+        - Warehouses
+      summary: Get warehouses by feature
+      description: Get a list of warehouses by feature
+      parameters:
+        - name: feature
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [temperature-controlled, hazardous-materials, cross-docking, loading-docks, security-system, cctv, fire-protection]
+          description: Warehouse feature
+      responses:
+        '200':
+          description: Warehouses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      warehouses:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Warehouse'
+
+components:
+  schemas:
+    Warehouse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        name:
+          type: string
+          example: Main Distribution Center
+        code:
+          type: string
+          example: WH-MAIN-001
+        type:
+          type: string
+          enum: [main, regional, distribution, retail, other]
+          example: main
+        description:
+          type: string
+          example: Main distribution center for the eastern region
+        location:
+          type: object
+          properties:
+            address:
+              type: object
+              properties:
+                street:
+                  type: string
+                  example: 123 Warehouse Ave
+                city:
+                  type: string
+                  example: New York
+                state:
+                  type: string
+                  example: NY
+                country:
+                  type: string
+                  example: United States
+                postalCode:
+                  type: string
+                  example: '10001'
+            coordinates:
+              type: object
+              properties:
+                type:
+                  type: string
+                  example: Point
+                coordinates:
+                  type: array
+                  items:
+                    type: number
+                  example: [-73.935242, 40.730610]
+        contact:
+          type: object
+          properties:
+            name:
+              type: string
+              example: John Smith
+            phone:
+              type: string
+              example: '+1234567890'
+            email:
+              type: string
+              format: email
+              example: john.smith@example.com
+        details:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [distribution, fulfillment, cold-storage, hazmat, general]
+              example: distribution
+            size:
+              type: object
+              properties:
+                totalArea:
+                  type: object
+                  properties:
+                    value:
+                      type: number
+                      example: 50000
+                    unit:
+                      type: string
+                      enum: [sq-ft, sq-m]
+                      example: sq-ft
+                storageArea:
+                  type: object
+                  properties:
+                    value:
+                      type: number
+                      example: 40000
+                    unit:
+                      type: string
+                      enum: [sq-ft, sq-m]
+                      example: sq-ft
+            capacity:
+              type: object
+              properties:
+                total:
+                  type: number
+                  example: 1000
+                unit:
+                  type: string
+                  enum: [sqft, sqm, pallets, units]
+                  example: pallets
+            features:
+              type: array
+              items:
+                type: string
+                enum: [temperature-controlled, hazardous-materials, cross-docking, loading-docks, security-system, cctv, fire-protection]
+              example: [temperature-controlled, security-system, cctv]
+        operatingHours:
+          type: object
+          properties:
+            monday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '09:00'
+                close:
+                  type: string
+                  example: '18:00'
+            tuesday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '09:00'
+                close:
+                  type: string
+                  example: '18:00'
+            wednesday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '09:00'
+                close:
+                  type: string
+                  example: '18:00'
+            thursday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '09:00'
+                close:
+                  type: string
+                  example: '18:00'
+            friday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '09:00'
+                close:
+                  type: string
+                  example: '18:00'
+            saturday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '10:00'
+                close:
+                  type: string
+                  example: '16:00'
+            sunday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '10:00'
+                close:
+                  type: string
+                  example: '16:00'
+        status:
+          type: string
+          enum: [active, inactive, maintenance, closed]
+          example: active
+        createdBy:
+          type: string
+          example: 507f1f77bcf86cd799439012
+        updatedBy:
+          type: string
+          example: 507f1f77bcf86cd799439012
+        createdAt:
+          type: string
+          format: date-time
+          example: '2023-01-01T00:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2023-01-01T00:00:00Z'
+
+    WarehouseInput:
+      type: object
+      required:
+        - name
+        - code
+        - type
+        - location
+        - contact
+        - details
+      properties:
+        name:
+          type: string
+          example: Main Distribution Center
+        code:
+          type: string
+          example: WH-MAIN-001
+        type:
+          type: string
+          enum: [main, regional, distribution, retail, other]
+          example: main
+        description:
+          type: string
+          example: Main distribution center for the eastern region
+        location:
+          type: object
+          required:
+            - address
+          properties:
+            address:
+              type: object
+              required:
+                - street
+                - city
+                - state
+                - country
+                - postalCode
+              properties:
+                street:
+                  type: string
+                  example: 123 Warehouse Ave
+                city:
+                  type: string
+                  example: New York
+                state:
+                  type: string
+                  example: NY
+                country:
+                  type: string
+                  example: United States
+                postalCode:
+                  type: string
+                  example: '10001'
+            coordinates:
+              type: object
+              properties:
+                type:
+                  type: string
+                  example: Point
+                coordinates:
+                  type: array
+                  items:
+                    type: number
+                  example: [-73.935242, 40.730610]
+        contact:
+          type: object
+          required:
+            - name
+            - phone
+            - email
+          properties:
+            name:
+              type: string
+              example: John Smith
+            phone:
+              type: string
+              example: '+1234567890'
+            email:
+              type: string
+              format: email
+              example: john.smith@example.com
+        details:
+          type: object
+          required:
+            - type
+            - capacity
+          properties:
+            type:
+              type: string
+              enum: [distribution, fulfillment, cold-storage, hazmat, general]
+              example: distribution
+            size:
+              type: object
+              properties:
+                totalArea:
+                  type: object
+                  properties:
+                    value:
+                      type: number
+                      example: 50000
+                    unit:
+                      type: string
+                      enum: [sq-ft, sq-m]
+                      example: sq-ft
+                storageArea:
+                  type: object
+                  properties:
+                    value:
+                      type: number
+                      example: 40000
+                    unit:
+                      type: string
+                      enum: [sq-ft, sq-m]
+                      example: sq-ft
+            capacity:
+              type: object
+              required:
+                - total
+              properties:
+                total:
+                  type: number
+                  example: 1000
+                unit:
+                  type: string
+                  enum: [sqft, sqm, pallets, units]
+                  example: pallets
+            features:
+              type: array
+              items:
+                type: string
+                enum: [temperature-controlled, hazardous-materials, cross-docking, loading-docks, security-system, cctv, fire-protection]
+              example: [temperature-controlled, security-system, cctv]
+        operatingHours:
+          type: object
+          properties:
+            monday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '09:00'
+                close:
+                  type: string
+                  example: '18:00'
+            tuesday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '09:00'
+                close:
+                  type: string
+                  example: '18:00'
+            wednesday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '09:00'
+                close:
+                  type: string
+                  example: '18:00'
+            thursday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '09:00'
+                close:
+                  type: string
+                  example: '18:00'
+            friday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '09:00'
+                close:
+                  type: string
+                  example: '18:00'
+            saturday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '10:00'
+                close:
+                  type: string
+                  example: '16:00'
+            sunday:
+              type: object
+              properties:
+                open:
+                  type: string
+                  example: '10:00'
+                close:
+                  type: string
+                  example: '16:00' 

@@ -1,225 +1,141 @@
+import mongoose from 'mongoose';
+import { AppError } from '../../utils/errors/AppError.js';
+
 // ===== INVENTORY SCHEMA =====
-const inventorySchema = new Schema({
+const inventorySchema = new mongoose.Schema({
     product: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Product',
-        required: true,
-        index: true
+        required: [true, 'Product reference is required']
     },
-    variant: {
+    warehouse: {
         type: mongoose.Schema.Types.ObjectId,
-        required: false // Only if product has variants
+        ref: 'Warehouse',
+        required: [true, 'Warehouse reference is required']
     },
-    sku: {
+    quantity: {
+        type: Number,
+        required: [true, 'Quantity is required'],
+        min: [0, 'Quantity cannot be negative'],
+        default: 0
+    },
+    unit: {
         type: String,
-        required: true,
-        uppercase: true,
-        index: true
+        required: [true, 'Unit is required'],
+        enum: ['pcs', 'kg', 'g', 'l', 'ml', 'box', 'pack'],
+        default: 'pcs'
     },
-    
-    // Stock Information
-    stock: {
-        quantity: {
-            type: Number,
-            required: true,
-            min: 0,
-            default: 0
-        },
-        reserved: {
-            type: Number,
-            default: 0,
-            min: 0
-        },
-        committed: {
-            type: Number,
-            default: 0,
-            min: 0
-        },
-        available: {
-            type: Number,
-            default: 0,
-            min: 0
-        }
-    },
-    
-    // Thresholds
-    thresholds: {
-        low: {
-            type: Number,
-            default: 10,
-            min: 0
-        },
-        critical: {
-            type: Number,
-            default: 5,
-            min: 0
-        },
-        reorder: {
-            type: Number,
-            default: 20,
-            min: 0
-        }
-    },
-    
-    // Location Information
     location: {
-        warehouse: String,
-        zone: String,
-        aisle: String,
-        shelf: String,
-        bin: String
-    },
-    
-    // Cost Information
-    cost: {
-        average: {
-            type: Number,
-            min: 0
-        },
-        last: {
-            type: Number,
-            min: 0
-        },
-        standard: {
-            type: Number,
-            min: 0
-        }
-    },
-    
-    // Supplier Information
-    supplier: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Supplier',
-        index: true
-    },
-    
-    // Movement History
-    movements: [{
-        type: {
+        aisle: {
             type: String,
-            enum: ['in', 'out', 'adjustment', 'transfer', 'return'],
-            required: true
+            trim: true
         },
-        quantity: {
-            type: Number,
-            required: true
+        rack: {
+            type: String,
+            trim: true
         },
-        reason: String,
-        reference: String, // Order ID, Transfer ID, etc.
-        timestamp: {
-            type: Date,
-            default: Date.now
+        shelf: {
+            type: String,
+            trim: true
         },
-        user: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
+        bin: {
+            type: String,
+            trim: true
         }
-    }],
-    
-    // Batch/Lot Information
-    batches: [{
-        batchNumber: String,
-        quantity: Number,
-        expiryDate: Date,
-        manufacturedDate: Date,
-        supplier: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Supplier'
-        }
-    }],
-    
-    // Status
+    },
+    batchNumber: {
+        type: String,
+        trim: true
+    },
+    expiryDate: {
+        type: Date
+    },
     status: {
         type: String,
-        enum: ['active', 'inactive', 'discontinued'],
-        default: 'active',
-        index: true
+        enum: ['available', 'reserved', 'damaged', 'quarantine'],
+        default: 'available'
     },
-    
-    // Alerts
-    alerts: [{
-        type: {
-            type: String,
-            enum: ['low-stock', 'critical-stock', 'expired', 'expiring-soon']
-        },
-        message: String,
-        acknowledged: {
-            type: Boolean,
-            default: false
-        },
-        acknowledgedBy: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-        },
-        acknowledgedAt: Date,
-        createdAt: {
-            type: Date,
-            default: Date.now
-        }
-    }]
-    
-}, { 
+    minimumStock: {
+        type: Number,
+        min: [0, 'Minimum stock cannot be negative'],
+        default: 0
+    },
+    maximumStock: {
+        type: Number,
+        min: [0, 'Maximum stock cannot be negative']
+    },
+    reorderPoint: {
+        type: Number,
+        min: [0, 'Reorder point cannot be negative']
+    },
+    lastStockCount: {
+        date: Date,
+        quantity: Number,
+        discrepancy: Number
+    },
+    notes: {
+        type: String,
+        trim: true
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
+}, {
     timestamps: true,
-    indexes: [
-        { product: 1, variant: 1 },
-        { sku: 1 },
-        { 'stock.quantity': 1, status: 1 },
-        { supplier: 1, status: 1 },
-        { 'movements.timestamp': -1 }
-    ]
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
 });
 
-// Virtual for available stock
-inventorySchema.virtual('availableStock').get(function() {
-    return this.stock.quantity - this.stock.reserved - this.stock.committed;
+// Indexes
+inventorySchema.index({ product: 1, warehouse: 1 }, { unique: true });
+inventorySchema.index({ status: 1 });
+inventorySchema.index({ 'location.aisle': 1, 'location.rack': 1, 'location.shelf': 1, 'location.bin': 1 });
+inventorySchema.index({ expiryDate: 1 });
+
+// Virtual for stock status
+inventorySchema.virtual('stockStatus').get(function() {
+    if (this.quantity <= 0) return 'out-of-stock';
+    if (this.quantity <= this.reorderPoint) return 'low-stock';
+    if (this.quantity >= this.maximumStock) return 'overstocked';
+    return 'normal';
 });
 
-// Method to update stock levels
-inventorySchema.methods.updateStock = function(quantity, type, reason, user) {
-    this.movements.push({
-        type,
-        quantity,
-        reason,
-        user,
-        timestamp: new Date()
+// Pre-save middleware to validate stock levels
+inventorySchema.pre('save', function(next) {
+    if (this.maximumStock && this.quantity > this.maximumStock) {
+        throw new AppError('Quantity cannot exceed maximum stock level', 400);
+    }
+    if (this.reorderPoint && this.reorderPoint > this.maximumStock) {
+        throw new AppError('Reorder point cannot be greater than maximum stock', 400);
+    }
+    next();
+});
+
+// Static method to find low stock items
+inventorySchema.statics.findLowStock = function() {
+    return this.find({
+        $expr: {
+            $and: [
+                { $gt: ['$reorderPoint', 0] },
+                { $lte: ['$quantity', '$reorderPoint'] }
+            ]
+        }
     });
-    
-    if (type === 'in') {
-        this.stock.quantity += quantity;
-    } else if (type === 'out') {
-        this.stock.quantity = Math.max(0, this.stock.quantity - quantity);
-    } else if (type === 'adjustment') {
-        this.stock.quantity = Math.max(0, quantity);
-    }
-    
-    this.stock.available = this.availableStock;
-    
-    // Check for alerts
-    this.checkStockAlerts();
-    
-    return this.save();
 };
 
-// Method to check and create stock alerts
-inventorySchema.methods.checkStockAlerts = function() {
-    const availableStock = this.availableStock;
-    
-    // Remove existing stock alerts
-    this.alerts = this.alerts.filter(alert => 
-        !['low-stock', 'critical-stock'].includes(alert.type)
-    );
-    
-    if (availableStock <= this.thresholds.critical) {
-        this.alerts.push({
-            type: 'critical-stock',
-            message: `Critical stock level: ${availableStock} units remaining`
-        });
-    } else if (availableStock <= this.thresholds.low) {
-        this.alerts.push({
-            type: 'low-stock',
-            message: `Low stock level: ${availableStock} units remaining`
-        });
-    }
+// Static method to find expired items
+inventorySchema.statics.findExpired = function() {
+    return this.find({
+        expiryDate: { $lt: new Date() }
+    });
 };
 
-export const Inventory = mongoose.model('Inventory', inventorySchema);
+const Inventory = mongoose.model('Inventory', inventorySchema);
+
+export default Inventory;
