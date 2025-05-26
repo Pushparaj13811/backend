@@ -60,11 +60,23 @@ router.post(
 // Protected routes
 router.use(authenticate);
 
+router.post(
+  '/resend-otp/authenticated',
+  validateRequest(userValidation.resendOTPAuthenticated),
+  userController.resendVerificationOTP
+);
+
 router.post('/logout', userController.logout);
 
 router.get('/profile', userController.getProfile);
 
 router.patch(
+  '/profile',
+  validateRequest(userValidation.updateProfile),
+  userController.updateProfile
+);
+
+router.put(
   '/profile',
   validateRequest(userValidation.updateProfile),
   userController.updateProfile
