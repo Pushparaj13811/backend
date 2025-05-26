@@ -1,7 +1,9 @@
 // ===== CATEGORY SCHEMA =====
 import mongoose, { Schema } from 'mongoose';
+import slugify from 'slugify';
 
 const categorySchema = new Schema({
+    // Basic Information
     name: {
         type: String,
         required: [true, 'Category name is required'],
@@ -14,94 +16,163 @@ const categorySchema = new Schema({
         required: true,
         unique: true,
         lowercase: true,
-        trim: true,
         index: true
     },
     description: {
         type: String,
-        maxlength: [500, 'Description cannot exceed 500 characters']
+        maxlength: [1000, 'Description cannot exceed 1000 characters']
     },
+    
+    // Hierarchy
+    parent: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category',
+        default: null
+    },
+    ancestors: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category'
+    }],
+    level: {
+        type: Number,
+        default: 0
+    },
+    
+    // Classification
+    type: {
+        type: String,
+        enum: ['grocery', 'produce', 'meat', 'dairy', 'frozen', 'bakery', 'deli', 'pharmacy', 'household'],
+        required: true,
+        index: true
+    },
+    
+    // Display & Navigation
+    displayOrder: {
+        type: Number,
+        default: 0
+    },
+    isVisible: {
+        type: Boolean,
+        default: true,
+        index: true
+    },
+    featured: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+    
+    // Media
     image: {
         url: String,
         publicId: String,
         alt: String
     },
-    icon: String,
+    icon: {
+        url: String,
+        publicId: String,
+        alt: String
+    },
     
-    // Hierarchical structure
-    parent: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Category',
-        default: null,
-        index: true
+    // SEO
+    seo: {
+        title: String,
+        description: String,
+        keywords: [String],
+        canonicalUrl: String
     },
-    level: {
-        type: Number,
-        default: 0,
-        min: 0,
-        max: 5 // Limit nesting depth
-    },
-    path: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Category'
+    
+    // Attributes & Filters
+    attributes: [{
+        name: {
+            type: String,
+            required: true
+        },
+        type: {
+            type: String,
+            enum: ['text', 'number', 'boolean', 'select', 'multiselect', 'date'],
+            required: true
+        },
+        options: [String], // For select/multiselect types
+        required: {
+            type: Boolean,
+            default: false
+        },
+        searchable: {
+            type: Boolean,
+            default: false
+        },
+        filterable: {
+            type: Boolean,
+            default: false
+        },
+        displayOrder: {
+            type: Number,
+            default: 0
+        }
     }],
     
-    // SEO & Display
-    seo: {
-        metaTitle: {
-            type: String,
-            maxlength: [60, 'Meta title cannot exceed 60 characters']
+    // Analytics
+    analytics: {
+        productCount: {
+            type: Number,
+            default: 0
         },
-        metaDescription: {
-            type: String,
-            maxlength: [160, 'Meta description cannot exceed 160 characters']
+        viewCount: {
+            type: Number,
+            default: 0
         },
-        keywords: [String]
+        lastViewed: Date
     },
     
-    // Status & Analytics
+    // Status
     status: {
         type: String,
-        enum: ['active', 'inactive', 'draft'],
+        enum: ['active', 'inactive', 'archived'],
         default: 'active',
         index: true
-    },
-    sortOrder: {
-        type: Number,
-        default: 0
-    },
-    productCount: {
-        type: Number,
-        default: 0
-    },
-    isPopular: {
-        type: Boolean,
-        default: false,
-        index: true
     }
-}, { 
+    
+}, {
     timestamps: true,
     indexes: [
         { name: 1, status: 1 },
-        { parent: 1, sortOrder: 1 },
-        { slug: 1 },
-        { isPopular: -1, productCount: -1 }
+        { parent: 1, status: 1 },
+        { type: 1, status: 1 },
+        { featured: 1, status: 1 },
+        { 'analytics.productCount': -1 },
+        { displayOrder: 1 }
     ]
 });
 
-// Virtual for full path names
-categorySchema.virtual('fullPath', {
-    ref: 'Category',
-    localField: 'path',
-    foreignField: '_id'
+// Pre-save middleware to generate slug
+categorySchema.pre('save', function(next) {
+    if (this.isModified('name')) {
+        this.slug = slugify(this.name, { lower: true, strict: true });
+    }
+    next();
 });
 
-// Virtual for children count
-categorySchema.virtual('childrenCount', {
-    ref: 'Category',
-    localField: '_id',
-    foreignField: 'parent',
-    count: true
+// Virtual for full path
+categorySchema.virtual('fullPath').get(function() {
+    return this.ancestors.map(ancestor => ancestor.name).concat(this.name).join(' > ');
 });
+
+// Method to get all children categories
+categorySchema.methods.getChildren = async function() {
+    return await this.model('Category').find({ parent: this._id });
+};
+
+// Method to get all products in category and subcategories
+categorySchema.methods.getAllProducts = async function() {
+    const categories = await this.model('Category').find({
+        $or: [
+            { _id: this._id },
+            { ancestors: this._id }
+        ]
+    });
+    const categoryIds = categories.map(cat => cat._id);
+    return await this.model('Product').find({ category: { $in: categoryIds } });
+};
 
 export const Category = mongoose.model('Category', categorySchema);
