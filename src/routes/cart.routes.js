@@ -1,7 +1,7 @@
 import express from 'express';
 import { CartController } from '../controllers/cart/cart.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
-import validateRequest from "../middlewares/validate-request.js"
+import {validateRequest} from "../middlewares/validate-request.js";
 import { cartValidation } from '../validations/cart.validation.js';
 
 const router = express.Router();

@@ -1,7 +1,7 @@
 import express from 'express';
 import { WishlistController } from '../controllers/wishlist/wishlist.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
-import validateRequest from "../middlewares/validate-request.js"
+import {validateRequest} from "../middlewares/validate-request.js";
 import { wishlistValidation } from '../validations/wishlist.validation.js';
 
 const router = express.Router();

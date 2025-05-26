@@ -1,6 +1,6 @@
 import { BaseService } from '../BaseService.js';
 import { CartRepository } from '../../repositories/cart/cart.repository.js';
-import { ProductService } from '../product/product.service.js';
+import { ProductService } from '../ProductService.js';
 
 export class CartService extends BaseService {
   constructor() {

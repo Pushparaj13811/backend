@@ -1,7 +1,7 @@
 import express from 'express';
 import { ReviewController } from '../controllers/review/review.controller.js';
 import { authenticate } from '../middlewares/authenticate.js';
-import validateRequest from "../middlewares/validate-request.js"
+import {validateRequest} from "../middlewares/validate-request.js";
 import { reviewValidation } from '../validations/review.validation.js';
 
 const router = express.Router();

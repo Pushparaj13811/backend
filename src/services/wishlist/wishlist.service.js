@@ -1,6 +1,6 @@
 import { BaseService } from '../BaseService.js';
 import { WishlistRepository } from '../../repositories/wishlist/wishlist.repository.js';
-import { ProductService } from '../product/product.service.js';
+import { ProductService } from '../ProductService.js';
 import { CartService } from '../cart/cart.service.js';
 
 export class WishlistService extends BaseService {
